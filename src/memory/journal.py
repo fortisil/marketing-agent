@@ -36,20 +36,23 @@ def _journal_from_report(report: dict[str, Any], timezone: str) -> dict[str, Any
     risks = report.get("risks", [])
     okr_status = report.get("okr_status", {})
     action_log = report.get("autonomous_action_log", [])
+    prediction = report.get("prediction", {})
+    prediction_evaluation = report.get("prediction_evaluation", {})
     return {
         "date": report.get("date"),
         "created_at": datetime.now(ZoneInfo(timezone)).isoformat(),
         "questions": {
             "what_did_i_learn_today": _learning_from_report(report),
-            "which_recommendation_was_wrong": "Unknown until outcomes are measured; review tomorrow against actual funnel data.",
+            "which_recommendation_was_wrong": _prediction_reflection(prediction_evaluation),
             "what_surprised_me": risks[0] if risks else "No major surprise recorded in today's data.",
             "what_should_i_change_tomorrow": _tomorrow_change(recommendations, okr_status),
         },
         "autonomous_action_review": action_log,
         "learning": {
-            "prediction": recommendations[0] if recommendations else {},
+            "prediction": prediction or (recommendations[0] if recommendations else {}),
             "reality": "Pending next metrics sync.",
             "improvement": "Compare tomorrow's WhatsApp, demo, customer, and campaign metrics against today's expected outcomes.",
+            "calibration": prediction_evaluation,
         },
     }
 
@@ -67,6 +70,16 @@ def _tomorrow_change(recommendations: list[dict[str, Any]], okr_status: dict[str
         return f"Start by validating whether this recommendation moved the business: {recommendations[0].get('title')}."
     daily_question = okr_status.get("daily_question", "What action most helps acquire another paying customer?")
     return f"Ask again tomorrow: {daily_question}"
+
+
+def _prediction_reflection(prediction_evaluation: dict[str, Any]) -> str:
+    if prediction_evaluation:
+        due_date = prediction_evaluation.get("evaluation_due_date", "the evaluation date")
+        return (
+            "Unknown until outcomes are measured; review the prediction against actual funnel data "
+            f"on {due_date}."
+        )
+    return "Unknown until outcomes are measured; review tomorrow against actual funnel data."
 
 
 def _journal_markdown(journal: dict[str, Any]) -> str:

@@ -44,6 +44,7 @@ The core reasoning loop asks:
 2. Why?
 3. What should we change?
 4. What is today's highest ROI activity?
+5. What prediction am I making, and when will I evaluate it?
 
 Future providers should implement the same provider contract as `src/providers/mock.py`.
 
@@ -355,6 +356,20 @@ memory/runs/YYYYMMDD-HHMMSS.json
 ```
 
 `memory/reports/YYYY-MM-DD.json` is the source of truth. The Markdown brief is only one view. Later, the same record can power email, dashboard, WhatsApp summary, weekly report, and monthly report.
+
+## Judgment And Calibration
+
+The operating principle is: we are no longer building features; we are building judgment.
+
+Each daily report includes:
+
+- A CEO scorecard for Judgment, Business Impact, Proactivity, Signal vs. Noise, and Learning.
+- A measurable prediction tied to the day's highest-impact action.
+- A pending prediction evaluation window, usually seven days.
+- A Friday red-team challenge that questions one assumption.
+- A 90-day success definition focused on publishing consistency, qualified demos, prediction quality, and measurable funnel improvement.
+
+CEO scores are intentionally left blank in the JSON until Rami reviews the brief.
 
 ## Company State
 

@@ -84,6 +84,11 @@ class DailyReport:
     autonomous_action_log: list[dict[str, Any]]
     okr_status: dict[str, Any]
     board_advisors: list[dict[str, Any]]
+    judgment_scorecard: dict[str, Any]
+    prediction: dict[str, Any]
+    prediction_evaluation: dict[str, Any]
+    red_team_challenge: dict[str, Any]
+    success_90_day_status: dict[str, Any]
     confidence: dict[str, float]
     risks: list[str]
     next_review: str
@@ -105,6 +110,11 @@ class DailyReport:
             "autonomous_action_log": self.autonomous_action_log,
             "okr_status": self.okr_status,
             "board_advisors": self.board_advisors,
+            "judgment_scorecard": self.judgment_scorecard,
+            "prediction": self.prediction,
+            "prediction_evaluation": self.prediction_evaluation,
+            "red_team_challenge": self.red_team_challenge,
+            "success_90_day_status": self.success_90_day_status,
             "confidence": self.confidence,
             "risks": self.risks,
             "next_review": self.next_review,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -153,6 +153,11 @@ class DecisionEngine:
         chief_of_staff_plan = ChiefOfStaff(delegated_authority).plan(tasks)
         okr_status = self._okr_status(metrics)
         board_advisors = self._board_advisors(metrics, okr_status)
+        judgment_scorecard = self._judgment_scorecard()
+        prediction = self._prediction(now, highest_roi_activity, whatsapp_bot, budget_decision)
+        prediction_evaluation = self._prediction_evaluation(prediction)
+        red_team_challenge = self._red_team_challenge(now, recommendations, metrics)
+        success_90_day_status = self._success_90_day_status(metrics)
         confidence = {
             "overall": round(
                 sum(recommendation.confidence for recommendation in recommendations)
@@ -181,6 +186,11 @@ class DecisionEngine:
             "brand_intelligence": brand_intelligence,
             "meta_ads": meta_ads,
             "whatsapp_bot": whatsapp_bot,
+            "judgment_scorecard": judgment_scorecard,
+            "prediction": prediction,
+            "prediction_evaluation": prediction_evaluation,
+            "red_team_challenge": red_team_challenge,
+            "success_90_day_status": success_90_day_status,
         }
         daily_report = DailyReport(
             company=self.company_config["company"]["name"],
@@ -197,6 +207,11 @@ class DecisionEngine:
             autonomous_action_log=chief_of_staff_plan.autonomous_action_log,
             okr_status=okr_status,
             board_advisors=board_advisors,
+            judgment_scorecard=judgment_scorecard,
+            prediction=prediction,
+            prediction_evaluation=prediction_evaluation,
+            red_team_challenge=red_team_challenge,
+            success_90_day_status=success_90_day_status,
             confidence=confidence,
             risks=risks,
             next_review=f"{run_date} 18:00 {self.timezone}",
@@ -357,6 +372,180 @@ class DecisionEngine:
                 "recommendation": "Educate first, demonstrate second, sell third.",
             },
         ]
+
+    def _judgment_scorecard(self) -> dict[str, Any]:
+        configured = self.objectives_config.get("judgment_scorecard", {})
+        dimensions = configured.get("dimensions") if isinstance(configured, dict) else None
+        if not dimensions:
+            dimensions = [
+                {
+                    "name": "Judgment",
+                    "question": "Would I have made the same decision?",
+                    "score_range": "1-10",
+                },
+                {
+                    "name": "Business Impact",
+                    "question": "Would acting on this likely increase customers?",
+                    "score_range": "1-10",
+                },
+                {
+                    "name": "Proactivity",
+                    "question": "Did it find opportunities on its own?",
+                    "score_range": "1-10",
+                },
+                {
+                    "name": "Signal vs. Noise",
+                    "question": "Was it concise and focused?",
+                    "score_range": "1-10",
+                },
+                {
+                    "name": "Learning",
+                    "question": "Did it improve compared to yesterday?",
+                    "score_range": "1-10",
+                },
+            ]
+        return {
+            "principle": "We are no longer building features. We are building judgment.",
+            "cadence": "Score every daily brief after reading it as if it came from a human executive.",
+            "dimensions": dimensions,
+            "ceo_scores": {str(item.get("name")): None for item in dimensions if isinstance(item, dict)},
+            "notes": "CEO scores are intentionally blank until Rami reviews the brief.",
+        }
+
+    def _prediction(
+        self,
+        now: datetime,
+        highest_roi_activity: str,
+        whatsapp_bot: dict[str, Any],
+        budget_decision: str,
+    ) -> dict[str, Any]:
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        conversations = int(today.get("conversations", 0) or 0)
+        qualified = int(today.get("qualified_leads", 0) or 0)
+        demos_booked = int(today.get("demo_bookings", today.get("demos_booked", 0)) or 0)
+        bottleneck = str(today.get("bottleneck", whatsapp_bot.get("today_bottleneck", "unknown")))
+        evaluation_days = int(
+            self.objectives_config.get("prediction_policy", {}).get("evaluation_window_days", 7)
+            if isinstance(self.objectives_config.get("prediction_policy", {}), dict)
+            else 7
+        )
+        budget_phrase = "without new paid spend"
+        if "Do not" not in budget_decision:
+            budget_phrase = "with up to ₪20/day inside delegated authority"
+
+        if bottleneck == "low_conversation_volume" or conversations < 5:
+            expected_outcome = {
+                "qualified_whatsapp_conversations": "3-5",
+                "booked_demos": ">=1",
+                "timeframe_days": 5,
+            }
+            hypothesis = (
+                f"Executing '{highest_roi_activity}' {budget_phrase} will create 3-5 qualified "
+                "WhatsApp conversations and at least 1 booked demo within 5 days."
+            )
+        elif bottleneck in {"qualification", "demo_scheduling"} or qualified > demos_booked:
+            expected_outcome = {
+                "demo_booking_rate_change": "+15%",
+                "booked_demos": ">=1",
+                "timeframe_days": 7,
+            }
+            hypothesis = (
+                f"Executing '{highest_roi_activity}' will improve the WhatsApp qualification-to-demo "
+                "path and produce at least 1 additional booked demo within 7 days."
+            )
+        else:
+            expected_outcome = {
+                "validated_learning": ">=1",
+                "booked_demos": "maintain_or_increase",
+                "timeframe_days": 7,
+            }
+            hypothesis = (
+                f"Executing '{highest_roi_activity}' will produce at least one measurable learning "
+                "about the fastest path from content or WhatsApp to booked demos within 7 days."
+            )
+
+        due_at = now + timedelta(days=evaluation_days)
+        return {
+            "hypothesis": hypothesis,
+            "action": highest_roi_activity,
+            "primary_kpi": self.objectives_config.get("north_star_kpi", "booked demos"),
+            "expected_outcome": expected_outcome,
+            "baseline": {
+                "conversations_today": conversations,
+                "qualified_leads_today": qualified,
+                "booked_demos_today": demos_booked,
+                "bottleneck": bottleneck,
+            },
+            "confidence": 0.74,
+            "created_at": now.isoformat(),
+            "evaluate_after_days": evaluation_days,
+            "evaluation_due_date": due_at.date().isoformat(),
+            "calibration_questions": [
+                "Was the prediction accurate?",
+                "Why or why not?",
+                "What should change next time?",
+            ],
+        }
+
+    def _prediction_evaluation(self, prediction: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "status": "pending",
+            "prediction_created_at": prediction.get("created_at"),
+            "evaluation_due_date": prediction.get("evaluation_due_date"),
+            "criteria": prediction.get("expected_outcome", {}),
+            "questions": prediction.get("calibration_questions", []),
+            "note": "Evaluate this prediction against actual WhatsApp, demo, customer, and campaign metrics when the window closes.",
+        }
+
+    def _red_team_challenge(
+        self,
+        now: datetime,
+        recommendations: list[Recommendation],
+        metrics: dict[str, Any],
+    ) -> dict[str, Any]:
+        policy = self.objectives_config.get("red_team", {})
+        cadence = str(policy.get("cadence", "Friday")) if isinstance(policy, dict) else "Friday"
+        is_friday = now.weekday() == 4
+        top_recommendation = recommendations[0].title if recommendations else "Run autonomous growth opportunity scan"
+        website_intelligence = metrics.get("website_intelligence", {})
+        content_ideas = (
+            website_intelligence.get("content_ideas", [])
+            if isinstance(website_intelligence, dict)
+            else []
+        )
+        alternative = str(content_ideas[0]) if content_ideas else "a practical carousel or website CTA experiment"
+        return {
+            "cadence": cadence,
+            "active_today": is_friday,
+            "assumption_to_challenge": f"The current highest-ROI action is '{top_recommendation}'.",
+            "challenge_question": (
+                f"What evidence suggests {alternative} could outperform this recommendation for booked demos?"
+            ),
+            "required_response": (
+                "Record one counter-hypothesis and decide whether it changes today's priority."
+                if is_friday
+                else "Run this challenge on Friday unless a major strategic decision appears earlier."
+            ),
+        }
+
+    def _success_90_day_status(self, metrics: dict[str, Any]) -> dict[str, Any]:
+        goals = self.objectives_config.get("success_90_days", {})
+        whatsapp_bot = metrics.get("whatsapp_bot", {})
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        demos_booked = int(today.get("demo_bookings", today.get("demos_booked", metrics.get("booked_demos", 0))) or 0)
+        customers = int(today.get("customers", 0) or 0)
+        qualified = int(today.get("qualified_leads", metrics.get("qualified_leads", 0)) or 0)
+        return {
+            "definition": goals,
+            "current_signals": {
+                "qualified_leads_today": qualified,
+                "booked_demos_today": demos_booked,
+                "customers_today": customers,
+            },
+            "status": "learning" if demos_booked == 0 and customers == 0 else "evidence_building",
+            "business_trend_goal": self.objectives_config.get("demo_booking_growth_trend", {}),
+            "governance": self.objectives_config.get("governance", {}),
+        }
 
     def _recommendations(
         self,

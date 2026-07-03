@@ -23,6 +23,7 @@ quarterly_okrs:
     instagram_followers: 3000
 
 operating_principles:
+  - We are no longer building features. We are building judgment.
   - Every activity should help ChatBot2U book more qualified demos.
   - In Validation, learning quality matters more than ad scale.
   - Prefer customer conversations and fast iteration over polished campaigns.
@@ -74,3 +75,74 @@ weekly_board_meeting:
     - Budget spent
     - ROI
     - Next week strategy
+
+architecture_freeze:
+  start_date: "2026-07-03"
+  duration_days: 14
+  focus:
+    - Connect real data sources.
+    - Improve recommendation quality.
+    - Fix bugs.
+    - Observe behavior.
+  avoid:
+    - Major redesigns.
+    - New features that do not improve decision quality.
+
+judgment_scorecard:
+  cadence: daily
+  score_range: 1-10
+  dimensions:
+    - name: Judgment
+      question: Would I have made the same decision?
+      score_range: 1-10
+    - name: Business Impact
+      question: Would acting on this likely increase customers?
+      score_range: 1-10
+    - name: Proactivity
+      question: Did it find opportunities on its own?
+      score_range: 1-10
+    - name: Signal vs. Noise
+      question: Was it concise and focused?
+      score_range: 1-10
+    - name: Learning
+      question: Did it improve compared to yesterday?
+      score_range: 1-10
+
+prediction_policy:
+  required_daily: true
+  evaluation_window_days: 7
+  calibration_questions:
+    - Was the prediction accurate?
+    - Why or why not?
+    - What should change next time?
+
+demo_booking_growth_trend:
+  week_1: 3
+  week_2: 5
+  week_3: 7
+  week_4: 9
+
+red_team:
+  cadence: Friday
+  rule: Challenge one operating assumption before reinforcing next week's strategy.
+  example_question: We have been prioritizing video content. What evidence suggests a carousel could outperform it for our audience?
+
+success_90_days:
+  marketing:
+    - Publish consistently without manual intervention.
+    - Every piece of content has a clear business objective.
+  sales:
+    - Generate qualified demo requests every week.
+    - Track the full funnel from content to customer.
+  executive_ai:
+    - Produce daily briefs that Rami genuinely relies on.
+    - Make increasingly accurate predictions.
+    - Learn from outcomes.
+    - Require fewer corrections over time.
+  business:
+    - Demonstrate measurable improvement in lead generation and conversion compared with today's baseline.
+
+governance:
+  autonomy_principle: Autonomy grows in proportion to demonstrated performance.
+  evaluation_standard: Hold the AI Executive OS to the same standard as a human executive.
+  primary_measurement: Quality of decisions and contribution to booked demos, not elegance of implementation.
