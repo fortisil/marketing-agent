@@ -1,0 +1,834 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from src.execution.chief_of_staff import ChiefOfStaff
+from src.providers.base import MetricSnapshot
+from src.reports.daily import DailyReport, Initiative, Recommendation, Task
+
+
+@dataclass(frozen=True)
+class DecisionContext:
+    run_date: str
+    questions: list[str]
+    snapshots: list[MetricSnapshot]
+    summary: dict[str, Any]
+    decisions: list[str]
+    highest_roi_activity: str
+    daily_report: DailyReport
+    risks: list[str] = field(default_factory=list)
+
+    def to_prompt_payload(self) -> dict[str, Any]:
+        return {
+            "run_date": self.run_date,
+            "questions": self.questions,
+            "summary": self.summary,
+            "decisions": self.decisions,
+            "highest_roi_activity": self.highest_roi_activity,
+            "daily_report": self.daily_report.to_dict(),
+            "risks": self.risks,
+            "snapshots": [
+                {
+                    "provider": snapshot.provider,
+                    "collected_at": snapshot.collected_at.isoformat(),
+                    "metrics": snapshot.metrics,
+                    "notes": snapshot.notes,
+                }
+                for snapshot in self.snapshots
+            ],
+        }
+
+
+class DecisionEngine:
+    questions = [
+        "What happened yesterday?",
+        "Why?",
+        "What should we change?",
+        "What is today's highest ROI activity?",
+        "What is the highest-impact action I can take today to help ChatBot2U acquire another paying customer?",
+    ]
+
+    def __init__(
+        self,
+        company_config: dict[str, Any],
+        objectives_config: dict[str, Any],
+        company_knowledge: str,
+        timezone: str,
+    ) -> None:
+        self.company_config = company_config
+        self.objectives_config = objectives_config
+        self.company_knowledge = company_knowledge
+        self.timezone = timezone
+
+    def evaluate(self, snapshots: list[MetricSnapshot]) -> DecisionContext:
+        metrics = self._merge_metrics(snapshots)
+        marketing = self.company_config["marketing"]
+        budget_rule = marketing["budget_rule"]
+        primary_kpi = marketing["primary_kpi"]
+        now = datetime.now(ZoneInfo(self.timezone))
+        run_date = now.date().isoformat()
+        company_state = str(self.objectives_config.get("company_state", "Validation"))
+        delegated_authority = self._delegated_authority()
+
+        booked_demos = int(metrics.get("booked_demos", 0))
+        target_booked_demos = int(metrics.get("target_booked_demos", 0))
+        qualified_leads = int(metrics.get("qualified_leads", 0))
+        whatsapp_clicks = int(metrics.get("whatsapp_clicks", 0))
+        spend = float(metrics.get("estimated_spend_ils", 0.0))
+        website_intelligence = metrics.get("website_intelligence", {})
+        brand_intelligence = metrics.get("brand_intelligence", {})
+        marketing_platform = metrics.get("marketing_platform", {})
+        meta_ads = metrics.get("meta_ads", {})
+        whatsapp_bot = metrics.get("whatsapp_bot", {})
+        real_spend_today = self._real_spend_today(meta_ads)
+        budget_spend = real_spend_today if real_spend_today is not None else spend
+
+        budget_decision = self._budget_decision(now, budget_spend, float(budget_rule["amount_ils_per_day"]))
+        objective_status = self._objective_status(booked_demos, budget_spend)
+
+        decisions = [
+            f"Keep the primary KPI focused on {primary_kpi}.",
+            budget_decision,
+            "Use WhatsApp as the primary CTA for every recommended action.",
+            (
+                "Never wait for work: if no obvious growth task exists, proactively review the website, "
+                "repository, marketing, competitors, SEO, sales funnel, WhatsApp conversations, hypotheses, "
+                "and experiments."
+            ),
+            self._delegated_authority_decision(delegated_authority),
+            self._state_decision(company_state),
+        ]
+        risks: list[str] = []
+
+        if target_booked_demos and booked_demos < target_booked_demos:
+            decisions.append("Prioritize conversion from qualified leads to booked demos.")
+            risks.append("Booked demos are below target.")
+
+        if qualified_leads and whatsapp_clicks:
+            decisions.append("Review WhatsApp conversation quality before increasing media spend.")
+
+        website_risks = website_intelligence.get("website_risks", [])
+        if website_risks:
+            decisions.append("Use website intelligence to remove conversion friction before scaling acquisition.")
+            risks.extend(str(risk) for risk in website_risks[:3])
+
+        brand_decisions, brand_risks = self._brand_decisions(brand_intelligence)
+        decisions.extend(brand_decisions)
+        risks.extend(brand_risks)
+
+        meta_decisions, meta_risks = self._marketing_platform_decisions(
+            marketing_platform,
+            meta_ads,
+            budget_decision,
+        )
+        decisions.extend(meta_decisions)
+        risks.extend(meta_risks)
+        whatsapp_decisions, whatsapp_risks = self._whatsapp_decisions(whatsapp_bot)
+        decisions.extend(whatsapp_decisions)
+        risks.extend(whatsapp_risks)
+
+        mission = str(self.objectives_config.get("mission_template", "Generate one qualified demo booking."))
+        recommendations = self._recommendations(
+            run_date=run_date,
+            company_state=company_state,
+            budget_decision=budget_decision,
+            booked_demos=booked_demos,
+            target_booked_demos=target_booked_demos,
+            website_intelligence=website_intelligence,
+            brand_intelligence=brand_intelligence,
+            marketing_platform=marketing_platform,
+            meta_ads=meta_ads,
+            whatsapp_bot=whatsapp_bot,
+        )
+        highest_roi_activity = (
+            recommendations[0].title
+            if recommendations
+            else "Follow up manually with qualified WhatsApp leads and convert them into booked demos."
+        )
+        initiatives = self._initiatives(recommendations, whatsapp_bot, website_intelligence)
+        tasks = self._tasks_from_recommendations(recommendations, initiatives, run_date)
+        chief_of_staff_plan = ChiefOfStaff(delegated_authority).plan(tasks)
+        okr_status = self._okr_status(metrics)
+        board_advisors = self._board_advisors(metrics, okr_status)
+        confidence = {
+            "overall": round(
+                sum(recommendation.confidence for recommendation in recommendations)
+                / max(len(recommendations), 1),
+                2,
+            ),
+            "metrics_quality": 0.45,
+            "decision_quality": 0.76 if company_state == "Validation" else 0.7,
+        }
+        summary = {
+            "primary_kpi": primary_kpi,
+            "booked_demos": booked_demos,
+            "target_booked_demos": target_booked_demos,
+            "qualified_leads": qualified_leads,
+            "whatsapp_clicks": whatsapp_clicks,
+            "estimated_spend_ils": spend,
+            "real_meta_spend_today_ils": real_spend_today,
+            "budget_rule": budget_rule,
+            "budget_decision": budget_decision,
+            "company_state": company_state,
+            "objectives": self.objectives_config,
+            "delegated_authority": delegated_authority,
+            "weekly_board_meeting": self.objectives_config.get("weekly_board_meeting", {}),
+            "marketing_platform": marketing_platform,
+            "website_intelligence": website_intelligence,
+            "brand_intelligence": brand_intelligence,
+            "meta_ads": meta_ads,
+            "whatsapp_bot": whatsapp_bot,
+        }
+        daily_report = DailyReport(
+            company=self.company_config["company"]["name"],
+            company_state=company_state,
+            date=run_date,
+            mission=mission,
+            metrics=summary,
+            objective_status=objective_status,
+            decisions=decisions,
+            initiatives=initiatives,
+            recommendations=recommendations,
+            tasks=tasks,
+            chief_of_staff_plan=chief_of_staff_plan.to_dict(),
+            autonomous_action_log=chief_of_staff_plan.autonomous_action_log,
+            okr_status=okr_status,
+            board_advisors=board_advisors,
+            confidence=confidence,
+            risks=risks,
+            next_review=f"{run_date} 18:00 {self.timezone}",
+            knowledge_summary=self._knowledge_summary(),
+        )
+
+        return DecisionContext(
+            run_date=run_date,
+            questions=self.questions,
+            snapshots=snapshots,
+            summary=summary,
+            decisions=decisions,
+            highest_roi_activity=highest_roi_activity,
+            daily_report=daily_report,
+            risks=risks,
+        )
+
+    def _merge_metrics(self, snapshots: list[MetricSnapshot]) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
+        for snapshot in snapshots:
+            merged.update(snapshot.metrics)
+        return merged
+
+    def _budget_decision(self, now: datetime, spend: float, daily_budget_ils: float) -> str:
+        if now.weekday() == 5:
+            return "Do not spend today because Saturday is a no-spend day."
+
+        if now.weekday() == 4 and now.hour >= 13:
+            return "Do not start or increase paid spend now because Friday paid spend stops after 13:00 Israel time."
+
+        if spend >= daily_budget_ils:
+            return "Do not increase spend because the daily ₪20 budget is already effectively used."
+
+        return "Paid spend may continue only up to the ₪20 daily cap if demo-booking intent remains strong."
+
+    def _objective_status(self, booked_demos: int, spend: float) -> dict[str, Any]:
+        targets = self.objectives_config.get("targets", {})
+        weekly_demo_target = int(targets.get("demos_per_week", 0))
+        cac_max = float(targets.get("cac_ils_max", 0))
+        projected_cac = round(spend / booked_demos, 2) if booked_demos else None
+
+        return {
+            "period": self.objectives_config.get("period"),
+            "goal": self.objectives_config.get("goal", {}),
+            "north_star_kpi": self.objectives_config.get("north_star_kpi"),
+            "weekly_demo_target": weekly_demo_target,
+            "booked_demos_observed": booked_demos,
+            "on_track_for_demo_target": booked_demos >= weekly_demo_target if weekly_demo_target else None,
+            "cac_ils_max": cac_max,
+            "projected_cac_ils": projected_cac,
+            "cac_on_track": projected_cac <= cac_max if projected_cac is not None and cac_max else None,
+        }
+
+    def _state_decision(self, company_state: str) -> str:
+        if company_state.lower() == "validation":
+            return (
+                "Because ChatBot2U is in Validation, prioritize customer interviews, demo bookings, "
+                "and rapid iteration over scaling ad spend."
+            )
+
+        return f"Company state is {company_state}; keep recommendations aligned with that stage."
+
+    def _delegated_authority(self) -> dict[str, Any]:
+        return self.objectives_config.get("delegated_authority", {})
+
+    def _delegated_authority_decision(self, delegated_authority: dict[str, Any]) -> str:
+        autonomous = []
+        limited = []
+        for section, rules in delegated_authority.items():
+            if not isinstance(rules, dict):
+                continue
+            for action, value in rules.items():
+                path = f"{section}.{action}"
+                if value == "always":
+                    autonomous.append(path)
+                elif value in {"never", "draft_only"}:
+                    limited.append(f"{path}={value}")
+        return (
+            "The AI CMO operates under delegated authority, not continuous approval. "
+            f"Autonomous authority={autonomous}; delegated limits={limited}. "
+            "Execute when authorized, document every significant decision, and escalate only when a decision exceeds delegated limits."
+        )
+
+    def _okr_status(self, metrics: dict[str, Any]) -> dict[str, Any]:
+        okrs = self.objectives_config.get("quarterly_okrs", {})
+        key_results = okrs.get("key_results", {}) if isinstance(okrs, dict) else {}
+        booked_demos = int(metrics.get("booked_demos", 0) or 0)
+        qualified_leads = int(metrics.get("qualified_leads", 0) or 0)
+        whatsapp_bot = metrics.get("whatsapp_bot", {})
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        customers = int(today.get("customers", 0) or 0)
+        observed = {
+            "paying_customers": customers,
+            "demos": booked_demos,
+            "qualified_leads": qualified_leads,
+        }
+        progress = {}
+        for key, target in key_results.items():
+            current = observed.get(key)
+            if current is None:
+                progress[key] = {"target": target, "observed": None, "status": "needs_data"}
+                continue
+            progress[key] = {
+                "target": target,
+                "observed": current,
+                "progress": round(current / target, 4) if target else None,
+                "status": "on_track" if target and current >= target else "behind_or_learning",
+            }
+        return {
+            "objective": okrs.get("objective") if isinstance(okrs, dict) else "",
+            "key_results": progress,
+            "daily_question": (
+                "What is the highest-impact action I can take today to help ChatBot2U acquire another paying customer?"
+            ),
+        }
+
+    def _board_advisors(self, metrics: dict[str, Any], okr_status: dict[str, Any]) -> list[dict[str, Any]]:
+        whatsapp_bot = metrics.get("whatsapp_bot", {})
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        bottleneck = str(today.get("bottleneck", whatsapp_bot.get("today_bottleneck", "unknown")))
+        spend = float(metrics.get("estimated_spend_ils", 0.0) or 0.0)
+        brand_intelligence = metrics.get("brand_intelligence", {})
+        brand_source = brand_intelligence.get("source", "unknown") if isinstance(brand_intelligence, dict) else "unknown"
+        design_status = (
+            brand_intelligence.get("design_system_review", {}).get("status", "unknown")
+            if isinstance(brand_intelligence, dict)
+            else "unknown"
+        )
+        return [
+            {
+                "advisor": "Growth Advisor",
+                "perspective": "Acquire more qualified law-firm leads and convert them into booked demos.",
+                "argument": f"Focus on the current funnel bottleneck: {bottleneck}.",
+                "recommendation": "Prioritize the action most likely to increase booked demos this week.",
+            },
+            {
+                "advisor": "Product Advisor",
+                "perspective": "Market only real product capabilities and strengthen differentiation.",
+                "argument": f"Repository and website intelligence should anchor every claim; brand source is {brand_source}.",
+                "recommendation": "Turn new or under-demonstrated capabilities into demos, posts, or website updates while following Brand Brain rules.",
+            },
+            {
+                "advisor": "Design System Advisor",
+                "perspective": "Protect ChatBot2U visual identity and prevent brand drift.",
+                "argument": f"Design System Agent status: {design_status}.",
+                "recommendation": "Reject or regenerate creative assets that do not follow logo, color, typography, CTA, or image-style rules.",
+            },
+            {
+                "advisor": "Finance Advisor",
+                "perspective": "Protect ROI and budget discipline.",
+                "argument": f"Current observed spend is ₪{spend:.2f}; every shekel needs expected return.",
+                "recommendation": "Promote only one asset when evidence supports it and stay inside delegated budget.",
+            },
+            {
+                "advisor": "Customer Success Advisor",
+                "perspective": "Protect trust, retention, and long-term customer relationships.",
+                "argument": "Growth must not create false expectations or weak customer handoffs.",
+                "recommendation": "Educate first, demonstrate second, sell third.",
+            },
+        ]
+
+    def _recommendations(
+        self,
+        run_date: str,
+        company_state: str,
+        budget_decision: str,
+        booked_demos: int,
+        target_booked_demos: int,
+        website_intelligence: dict[str, Any],
+        brand_intelligence: dict[str, Any],
+        marketing_platform: dict[str, Any],
+        meta_ads: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+    ) -> list[Recommendation]:
+        recommendations = [
+            Recommendation(
+                title="Convert qualified WhatsApp leads into booked demos",
+                reason=(
+                    "The North Star KPI is booked demos, and the current demo count is below target."
+                    if target_booked_demos and booked_demos < target_booked_demos
+                    else "Booked demos remain the strongest proof of business value."
+                ),
+                estimated_impact="High",
+                confidence=0.88,
+            ),
+            Recommendation(
+                title="Review WhatsApp conversation drop-offs before changing spend",
+                reason="In Validation, conversion learning is more valuable than pushing more traffic.",
+                estimated_impact="Medium",
+                confidence=0.78,
+            ),
+            Recommendation(
+                title="Draft one founder-led demonstration post",
+                reason="The knowledge base says Hebrew founder-led messaging is a useful trust signal.",
+                estimated_impact="Medium",
+                confidence=0.72,
+            ),
+        ]
+
+        if "Do not" in budget_decision:
+            recommendations.append(
+                Recommendation(
+                    title="Hold paid media changes until the next eligible spend window",
+                    reason=budget_decision,
+                    estimated_impact="Medium",
+                    confidence=0.91,
+                )
+            )
+
+        opportunities = website_intelligence.get("marketing_opportunities", [])
+        if opportunities:
+            recommendations.append(
+                Recommendation(
+                    title="Improve website conversion path for booked demos",
+                    reason=str(opportunities[0]),
+                    estimated_impact="Medium",
+                    confidence=0.74,
+                )
+            )
+
+        missing_ctas = website_intelligence.get("missing_or_weak_ctas", [])
+        if missing_ctas:
+            recommendations.append(
+                Recommendation(
+                    title="Strengthen website CTA toward WhatsApp demo booking",
+                    reason=str(missing_ctas[0]),
+                    estimated_impact="High",
+                    confidence=0.81,
+                )
+            )
+
+        design_review = brand_intelligence.get("design_system_review", {})
+        if design_review.get("status") != "approved":
+            recommendations.append(
+                Recommendation(
+                    title="Complete Brand Library before autonomous creative production",
+                    reason=str(
+                        design_review.get(
+                            "reason",
+                            "Brand Brain needs official assets before creative execution.",
+                        )
+                    ),
+                    estimated_impact="High",
+                    confidence=0.9,
+                )
+            )
+
+        if marketing_platform.get("mcp", {}).get("requires_external_mcp_execution") and not marketing_platform.get(
+            "metrics_available"
+        ):
+            recommendations.append(
+                Recommendation(
+                    title="Fetch live Meta metrics through ChatGPT/Meta MCP",
+                    reason="Meta MCP is the preferred execution layer, but this local AI CMO run cannot invoke MCP tools directly.",
+                    estimated_impact="High",
+                    confidence=0.86,
+                )
+            )
+        elif not meta_ads.get("available"):
+            recommendations.append(
+                Recommendation(
+                    title="Connect Meta Ads credentials before making spend decisions",
+                    reason=str(meta_ads.get("reason", "Real Meta metrics are unavailable.")),
+                    estimated_impact="Medium",
+                    confidence=0.7,
+                )
+            )
+        elif self._has_no_campaigns(meta_ads):
+            recommendations.append(
+                Recommendation(
+                    title="Create first Meta campaign within delegated budget limits",
+                    reason="No real campaign exists yet, so the next step is preparation within delegated authority and the ₪20/day cap.",
+                    estimated_impact="Medium",
+                    confidence=0.82,
+                )
+            )
+
+        recommendations.extend(self._whatsapp_recommendations(whatsapp_bot))
+
+        if company_state.lower() != "validation":
+            recommendations.append(
+                Recommendation(
+                    title=f"Review whether tasks still fit the {company_state} stage",
+                    reason="State changes should alter the operating cadence and risk tolerance.",
+                    estimated_impact="Medium",
+                    confidence=0.66,
+                )
+            )
+
+        return recommendations
+
+    def _initiatives(
+        self,
+        recommendations: list[Recommendation],
+        whatsapp_bot: dict[str, Any],
+        website_intelligence: dict[str, Any],
+    ) -> list[Initiative]:
+        recommendation_titles = [recommendation.title for recommendation in recommendations]
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        bottleneck = str(today.get("bottleneck", whatsapp_bot.get("today_bottleneck", "")))
+        website_tasks = [
+            title
+            for title in recommendation_titles
+            if "website" in title.lower() or "cta" in title.lower()
+        ]
+        return [
+            Initiative(
+                title="Increase demo bookings",
+                objective="Move qualified law-firm demand into booked demos and paying customers.",
+                kpi="booked_demos",
+                expected_business_impact="High",
+                confidence=0.88,
+                tasks=[
+                    title
+                    for title in recommendation_titles
+                    if "WhatsApp" in title or "demo" in title.lower() or "lead" in title.lower()
+                ],
+            ),
+            Initiative(
+                title="Improve acquisition conversion system",
+                objective="Reduce friction from website, content, ads, and WhatsApp into the sales funnel.",
+                kpi="qualified_leads",
+                expected_business_impact="High" if bottleneck else "Medium",
+                confidence=0.8,
+                tasks=website_tasks
+                or [
+                    str(item)
+                    for item in website_intelligence.get("marketing_opportunities", [])[:2]
+                ],
+            ),
+            Initiative(
+                title="Build learning loop for repeatable growth",
+                objective="Turn recommendations into experiments and compare expected impact with outcomes.",
+                kpi="paying_customers",
+                expected_business_impact="Medium",
+                confidence=0.74,
+                tasks=["Log experiment hypothesis, execution, result, business impact, and learning."],
+            ),
+        ]
+
+    def _tasks_from_recommendations(
+        self,
+        recommendations: list[Recommendation],
+        initiatives: list[Initiative],
+        due_date: str,
+    ) -> list[Task]:
+        tasks: list[Task] = []
+
+        if not recommendations:
+            return [
+                Task(
+                    title="Run autonomous growth opportunity scan",
+                    priority="High",
+                    due_date=due_date,
+                    estimated_impact="Medium",
+                    confidence=0.7,
+                    dependencies=[
+                        "Website intelligence",
+                        "Repository intelligence",
+                        "Marketing metrics",
+                        "WhatsApp funnel metrics",
+                    ],
+                    reason=(
+                        "The AI CMO should never wait for work. When no obvious task exists, review the "
+                        "website, repository, marketing, competitors, SEO opportunities, sales funnel, "
+                        "WhatsApp conversations, hypotheses, and experiments."
+                    ),
+                    initiative="Build learning loop for repeatable growth",
+                    authority_policy="marketing.create_post_drafts",
+                    expected_outcome="One new qualified growth hypothesis or experiment ready to execute.",
+                )
+            ]
+
+        for recommendation in recommendations:
+            priority = "High" if recommendation.estimated_impact == "High" else "Medium"
+            dependencies = ["WhatsApp conversation data"] if "WhatsApp" in recommendation.title else []
+            initiative_title = self._initiative_for_recommendation(recommendation, initiatives)
+            tasks.append(
+                Task(
+                    title=recommendation.title,
+                    priority=priority,
+                    due_date=due_date,
+                    estimated_impact=recommendation.estimated_impact,
+                    confidence=recommendation.confidence,
+                    dependencies=dependencies,
+                    reason=recommendation.reason,
+                    initiative=initiative_title,
+                    authority_policy="delegated_authority",
+                    expected_outcome=self._expected_outcome_for_recommendation(recommendation),
+                )
+            )
+
+        return tasks
+
+    def _initiative_for_recommendation(
+        self,
+        recommendation: Recommendation,
+        initiatives: list[Initiative],
+    ) -> str:
+        title = recommendation.title.lower()
+        if "website" in title or "cta" in title or "meta" in title or "campaign" in title:
+            return "Improve acquisition conversion system"
+        if "experiment" in title or "review" in title:
+            return "Build learning loop for repeatable growth"
+        return initiatives[0].title if initiatives else "Increase demo bookings"
+
+    def _expected_outcome_for_recommendation(self, recommendation: Recommendation) -> str:
+        if recommendation.estimated_impact == "High":
+            return "Increase probability of booked demos or paying customers this week."
+        return "Create measurable learning that improves future conversion decisions."
+
+    def _knowledge_summary(self) -> str:
+        compact = " ".join(self.company_knowledge.split())
+        return compact[:800]
+
+    def _real_spend_today(self, meta_ads: dict[str, Any]) -> float | None:
+        if not meta_ads.get("available"):
+            return None
+        today = meta_ads.get("today", {})
+        if not isinstance(today, dict) or today.get("spend") is None:
+            return None
+        try:
+            return float(today["spend"])
+        except (TypeError, ValueError):
+            return None
+
+    def _brand_decisions(self, brand_intelligence: dict[str, Any]) -> tuple[list[str], list[str]]:
+        if not brand_intelligence.get("available"):
+            return [
+                "Brand Brain is unavailable; use website repository inference only as a temporary fallback."
+            ], [
+                "Autonomous creative generation risks brand drift until the Brand Library is available."
+            ]
+
+        review = brand_intelligence.get("design_system_review", {})
+        decisions = [
+            "Use Brand Brain as the source of truth for logos, colors, typography, design rules, and asset library paths."
+        ]
+        risks: list[str] = []
+        if review.get("status") != "approved":
+            decisions.append("Design System Agent requires brand completion before autonomous publishing.")
+            risks.append(str(review.get("reason", "Brand Library is incomplete.")))
+        missing_assets = brand_intelligence.get("missing_assets", [])
+        if missing_assets:
+            risks.append(f"Brand asset library has missing or empty sections: {', '.join(missing_assets[:5])}.")
+        return decisions, risks
+
+    def _marketing_platform_decisions(
+        self,
+        marketing_platform: dict[str, Any],
+        meta_ads: dict[str, Any],
+        budget_decision: str,
+    ) -> tuple[list[str], list[str]]:
+        decisions: list[str] = []
+        risks: list[str] = []
+
+        mcp_payload = marketing_platform.get("mcp", {})
+        if mcp_payload.get("requires_external_mcp_execution") and not marketing_platform.get("metrics_available"):
+            decisions.append(
+                "Meta MCP is the preferred execution layer, but this local AI CMO run cannot invoke MCP tools directly. Use ChatGPT/Meta MCP to fetch live metrics."
+            )
+            actions = marketing_platform.get("mcp_required_actions", [])
+            if actions:
+                decisions.append(f"Next Meta MCP actions needed: {'; '.join(str(action) for action in actions)}")
+            risks.append("Live paid-media decisions need ChatGPT/Meta MCP sync or Graph API fallback.")
+            return decisions, risks
+
+        if not meta_ads.get("available"):
+            reason = meta_ads.get("reason", "Real Meta metrics are unavailable.")
+            decisions.append(f"Meta/Instagram metrics are unavailable: {reason}")
+            risks.append("Paid media decisions are limited because real Meta metrics are unavailable.")
+            return decisions, risks
+
+        campaigns_summary = meta_ads.get("campaigns_summary", {})
+        active_campaigns = campaigns_summary.get("active", [])
+        paused_campaigns = campaigns_summary.get("paused", [])
+        total_campaigns = int(campaigns_summary.get("total", 0) or 0)
+
+        if total_campaigns == 0:
+            decisions.append("No real Meta campaign exists; create the first campaign within delegated authority and keep spend inside the ₪20/day cap.")
+            return decisions, risks
+
+        if active_campaigns and "Do not" in budget_decision:
+            decisions.append("Review active Meta campaigns because today's budget rule blocks new paid spend.")
+
+        if paused_campaigns and not active_campaigns:
+            decisions.append("Meta campaigns exist but are paused; review them before approving any spend.")
+
+        delivery_errors = meta_ads.get("delivery_errors", [])
+        if delivery_errors:
+            decisions.append("Fix Meta delivery errors before approving paid spend.")
+            risks.extend(str(error) for error in delivery_errors[:3])
+
+        instagram = meta_ads.get("instagram", {})
+        if not instagram.get("available"):
+            decisions.append(
+                f"Instagram metrics are unavailable: {instagram.get('reason', 'permissions or IG account missing.')}"
+            )
+
+        return decisions, risks
+
+    def _has_no_campaigns(self, meta_ads: dict[str, Any]) -> bool:
+        if not meta_ads.get("available"):
+            return False
+        campaigns_summary = meta_ads.get("campaigns_summary", {})
+        return int(campaigns_summary.get("total", 0) or 0) == 0
+
+    def _whatsapp_decisions(self, whatsapp_bot: dict[str, Any]) -> tuple[list[str], list[str]]:
+        if not whatsapp_bot.get("available"):
+            reason = whatsapp_bot.get("reason", "WhatsApp bot funnel metrics are unavailable.")
+            return [f"WhatsApp bot funnel metrics are unavailable: {reason}"], [
+                "Primary KPI decisions are limited because WhatsApp bot funnel metrics are unavailable."
+            ]
+
+        today = whatsapp_bot.get("today", {})
+        conversations = int(today.get("conversations", 0) or 0)
+        qualified = int(today.get("qualified_leads", 0) or 0)
+        demos_booked = int(today.get("demo_bookings", today.get("demos_booked", 0)) or 0)
+        customers = int(today.get("customers", 0) or 0)
+        health_score = int(today.get("funnel_health_score", whatsapp_bot.get("funnel_health_score", 0)) or 0)
+        bottleneck = str(today.get("bottleneck", whatsapp_bot.get("today_bottleneck", "")))
+        rates = today.get("conversion_rates", {})
+
+        decisions: list[str] = [
+            (
+                "Use WhatsApp bot funnel metrics as the primary conversion signal: "
+                f"{conversations} conversations, {qualified} qualified leads, "
+                f"{demos_booked} demos booked, {customers} customers today."
+            ),
+            f"Funnel Health Score is {health_score}/100; today's bottleneck is {bottleneck}.",
+        ]
+        risks: list[str] = []
+
+        if bottleneck == "low_conversation_volume":
+            decisions.append("Few WhatsApp conversations today; improve Instagram and ads CTA into WhatsApp.")
+            risks.append("Low WhatsApp conversation volume may limit demo bookings.")
+        elif bottleneck == "qualification" or rates.get("conversation_to_qualified", 0.0) < 0.3:
+            decisions.append("Many WhatsApp conversations but few qualified leads; improve opening questions.")
+            risks.append("WhatsApp qualification rate is weak.")
+        elif bottleneck == "demo_scheduling" or (
+            qualified >= 3 and rates.get("qualified_to_demo", rates.get("qualified_to_demo_booked", 0.0)) < 0.4
+        ):
+            decisions.append("Many qualified WhatsApp leads but few demos booked; improve scheduling CTA.")
+            risks.append("Qualified leads are not converting into demo bookings.")
+        elif bottleneck == "demo_to_customer":
+            decisions.append("Demos are happening but customers are low; review demo quality and follow-up.")
+            risks.append("Demo-to-customer conversion is the current funnel risk.")
+
+        return decisions, risks
+
+    def _whatsapp_recommendations(self, whatsapp_bot: dict[str, Any]) -> list[Recommendation]:
+        if not whatsapp_bot.get("available"):
+            return [
+                Recommendation(
+                    title="Connect WhatsApp bot event log",
+                    reason=str(whatsapp_bot.get("reason", "WhatsApp bot funnel metrics are unavailable.")),
+                    estimated_impact="High",
+                    confidence=0.84,
+                )
+            ]
+
+        today = whatsapp_bot.get("today", {})
+        conversations = int(today.get("conversations", 0) or 0)
+        qualified = int(today.get("qualified_leads", 0) or 0)
+        demos_booked = int(today.get("demo_bookings", today.get("demos_booked", 0)) or 0)
+        customers = int(today.get("customers", 0) or 0)
+        health_score = int(today.get("funnel_health_score", whatsapp_bot.get("funnel_health_score", 0)) or 0)
+        bottleneck = str(today.get("bottleneck", whatsapp_bot.get("today_bottleneck", "")))
+        rates = today.get("conversion_rates", {})
+
+        if bottleneck == "low_conversation_volume" or conversations < 5:
+            return [
+                Recommendation(
+                    title="Increase WhatsApp conversation volume",
+                    reason=(
+                        "Few conversations entered the bot today, so the CTA from Instagram, ads, "
+                        f"and website needs more focus. Funnel Health Score: {health_score}/100."
+                    ),
+                    estimated_impact="High",
+                    confidence=0.86,
+                )
+            ]
+
+        if bottleneck == "qualification" or rates.get("conversation_to_qualified", 0.0) < 0.3:
+            return [
+                Recommendation(
+                    title="Improve WhatsApp opening questions",
+                    reason=(
+                        "Many conversations are not becoming qualified leads. "
+                        f"Current conversation-to-qualified rate: {rates.get('conversation_to_qualified', 0.0):.0%}."
+                    ),
+                    estimated_impact="High",
+                    confidence=0.87,
+                )
+            ]
+
+        if bottleneck == "demo_scheduling" or (
+            qualified >= 3 and rates.get("qualified_to_demo", rates.get("qualified_to_demo_booked", 0.0)) < 0.4
+        ):
+            return [
+                Recommendation(
+                    title="Improve WhatsApp scheduling CTA",
+                    reason=(
+                        "Qualified leads are not converting into booked demos fast enough. "
+                        f"Today: {qualified} qualified leads and {demos_booked} demos booked."
+                    ),
+                    estimated_impact="High",
+                    confidence=0.89,
+                )
+            ]
+
+        if bottleneck == "demo_to_customer":
+            return [
+                Recommendation(
+                    title="Review demo quality and follow-up",
+                    reason=(
+                        "Demo volume is good, but customer conversion is weak. "
+                        f"Today: {demos_booked} demos booked and {customers} customers."
+                    ),
+                    estimated_impact="High",
+                    confidence=0.82,
+                )
+            ]
+
+        return [
+            Recommendation(
+                title="Keep optimizing WhatsApp demo-booking flow",
+                reason=(
+                    "WhatsApp is the closest signal to booked demos and should remain the operating focus. "
+                    f"Funnel Health Score: {health_score}/100."
+                ),
+                estimated_impact="Medium",
+                confidence=0.78,
+            )
+        ]

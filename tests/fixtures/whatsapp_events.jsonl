@@ -1,0 +1,13 @@
+{"timestamp":"2026-07-03T08:10:00+03:00","conversation_id":"conv_1","phone_hash":"hash_1","event":"conversation_started","metadata":{"source":"instagram","response_time_seconds":4}}
+{"timestamp":"2026-07-03T08:12:00+03:00","conversation_id":"conv_1","phone_hash":"hash_1","event":"qualified_lead","metadata":{"firm_type":"law"}}
+{"timestamp":"2026-07-03T08:15:00+03:00","conversation_id":"conv_1","phone_hash":"hash_1","event":"demo_requested","metadata":{}}
+{"timestamp":"2026-07-03T08:18:00+03:00","conversation_id":"conv_1","phone_hash":"hash_1","event":"demo_booked","metadata":{"slot":"2026-07-04T09:00:00+03:00"}}
+{"timestamp":"2026-07-03T09:00:00+03:00","conversation_id":"conv_2","phone_hash":"hash_2","event":"conversation_started","metadata":{"source":"website","response_time_seconds":4}}
+{"timestamp":"2026-07-03T09:02:00+03:00","conversation_id":"conv_2","phone_hash":"hash_2","event":"qualified_lead","metadata":{}}
+{"timestamp":"2026-07-03T09:05:00+03:00","conversation_id":"conv_2","phone_hash":"hash_2","event":"demo_requested","metadata":{}}
+{"timestamp":"2026-07-03T10:00:00+03:00","conversation_id":"conv_3","phone_hash":"hash_3","event":"conversation_started","metadata":{"source":"instagram","response_time_seconds":4}}
+{"timestamp":"2026-07-03T10:02:00+03:00","conversation_id":"conv_3","phone_hash":"hash_3","event":"not_qualified","metadata":{"reason":"not_law_firm"}}
+{"timestamp":"2026-07-02T12:00:00+03:00","conversation_id":"conv_4","phone_hash":"hash_4","event":"conversation_started","metadata":{"source":"instagram"}}
+{"timestamp":"2026-07-02T12:03:00+03:00","conversation_id":"conv_4","phone_hash":"hash_4","event":"qualified_lead","metadata":{}}
+{"timestamp":"2026-07-02T12:06:00+03:00","conversation_id":"conv_4","phone_hash":"hash_4","event":"demo_booked","metadata":{}}
+{"timestamp":"2026-07-02T12:30:00+03:00","conversation_id":"conv_4","phone_hash":"hash_4","event":"customer","metadata":{"plan":"starter"}}

@@ -1,0 +1,60 @@
+brand:
+  company: ChatBot2U
+  audience: Israeli law firms
+  language: Hebrew
+  tone:
+    - professional
+    - trustworthy
+    - practical
+    - founder-led
+  primary_color: "#0F62FE"
+  secondary_color: "#1A1A1A"
+  accent_color: "#4FD1C5"
+  background_color: "#FFFFFF"
+  dark_background_color: "#0B1020"
+logo:
+  preferred: logo-dark.svg
+  light_background: logo-dark.svg
+  dark_background: logo-light.svg
+  minimum_clear_space: one logo mark width
+typography:
+  primary_font: system sans-serif
+  fallback_fonts:
+    - Arial
+    - Helvetica
+    - sans-serif
+icon_style:
+  - simple
+  - outline or solid minimal
+  - business software
+image_style:
+  - clean SaaS screenshots
+  - Israeli business context
+  - law firm workflows
+  - avoid generic stock imagery
+instagram:
+  width: 1080
+  height: 1350
+  safe_margin_px: 96
+content_order:
+  - educate
+  - demonstrate
+  - sell
+cta:
+  channel: WhatsApp
+  phone: "+972559720244"
+rules:
+  - Never guess branding when the Brand Library is available.
+  - Use repository inference only as fallback for missing brand assets.
+  - Every visual asset must use the official color palette or explain why an exception is needed.
+  - Every marketing asset must include a clear WhatsApp path when appropriate.
+asset_library:
+  logos: assets/companies/chatbot2u/logos
+  screenshots: assets/companies/chatbot2u/screenshots
+  hero_images: assets/companies/chatbot2u/hero-images
+  product_images: assets/companies/chatbot2u/product-images
+  heygen: assets/companies/chatbot2u/heygen
+  videos: assets/companies/chatbot2u/videos
+  icons: assets/companies/chatbot2u/icons
+  templates: assets/companies/chatbot2u/templates
+  social: assets/companies/chatbot2u/social

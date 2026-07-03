@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from openai import OpenAI
+
+from src.config import Settings
+from src.decisions.engine import DecisionContext
+
+
+FORBIDDEN_TERMS = ("נגנבו", "WattsApp")
+
+
+def build_prompt(
+    company_config: dict[str, Any],
+    decision_context: DecisionContext,
+    hebrew_style_guide: str,
+) -> str:
+    company = company_config["company"]
+    marketing = company_config["marketing"]
+    budget_rule = marketing["budget_rule"]
+    cta = marketing["cta"]
+    decision_payload = decision_context.to_prompt_payload()
+
+    return f"""
+כתוב בריף מנכ"ל יומי בעברית עבור {company["name"]}.
+
+זה לא "דוח". זה בריף של AI CMO שמטרתו לעזור ל-ChatBot2U להזמין יותר דמואים.
+
+השתמש בעברית עסקית ישראלית, טבעית ומקצועית. אין לתרגם מילולית מאנגלית.
+כתוב "WhatsApp" בדיוק כך בכל אזכור. אסור לכתוב "WattsApp".
+אסור להשתמש במילה "נגנבו" בהקשר של לידים, פניות, שיחות או דמואים.
+
+מדריך סגנון עברית מחייב:
+{hebrew_style_guide}
+
+הבריף צריך להיות חד, פרקטי וקצר, מיועד למנכ"ל, ולכלול:
+1. Executive Summary.
+2. Today's Mission.
+3. Business Health.
+4. Marketing Health.
+5. מקטע חובה בשם "📊 Funnel Summary" שמסכם את WhatsApp Bot funnel כמקור ה-KPI המרכזי.
+6. Website Health.
+7. Content Plan.
+8. Promotion Decision.
+9. Campaign Decision.
+10. Top Three Tasks.
+11. Expected Business Impact.
+12. Confidence.
+13. Delivery Status אם קיים ב-DailyReport.
+14. Learning Since Yesterday.
+15. שורות ברורות עבור:
+   - Today's bottleneck
+   - Highest impact recommendation
+   - Estimated business impact
+   - Confidence
+16. CTA ברור: {cta["channel"]} {cta["phone"]}.
+
+השתמש במונחים המועדפים:
+- פניות חדשות
+- לידים כשירים
+- פגישות הדגמה שנקבעו
+- המלצה לפעולה
+- משימה מרכזית להיום
+
+כללי תקציב שחייבים להופיע בהחלטות:
+- תקציב יומי: ₪{budget_rule["amount_ils_per_day"]}
+- שבת: {budget_rule["saturday"]}
+- שישי: {budget_rule["friday"]}
+- הערה: {budget_rule["note"]}
+
+קונטקסט החלטות ומדדים:
+{decision_payload}
+
+השתמש ב-DailyReport כמקור האמת. האימייל הוא רק תצוגת Markdown של הנתונים המובנים.
+התייחס ל-CEO Constitution כמסמך התרבות והגבולות הראשון של המערכת.
+כל המלצה צריכה לכלול ביטחון או רמת ודאות כאשר זה טבעי.
+הדגש את Today's Mission כמשימה אחת בלבד.
+התייחס ל-whatsapp_bot בתור מקור האמת ל-funnel: פניות חדשות, לידים כשירים, בקשות דמו, פגישות הדגמה שנקבעו ולקוחות.
+התייחס ל-AI CMO כמנהל עצמאי שלא ממתין למשימות. אם אין פעולה ברורה, עליו לייצר עבודה מועילה: סקירת אתר, ריפו, שיווק, מתחרים, SEO, funnel, שיחות WhatsApp, השערות וניסויים.
+כבד את delegated_authority: ה-AI CMO פועל תחת סמכות מואצלת, לא תחת אישור מתמשך. עליו לבצע כאשר הוא מוסמך, לתעד כל החלטה משמעותית, ולהסלים רק כשפעולה חורגת מגבולות הסמכות.
+התייחס ל-Chief of Staff plan כמסנן הביצוע: מה רץ היום, מה יכול להמתין, ומה חורג מגבולות הסמכות.
+התייחס ל-Initiatives כמבנה המרכזי: יוזמה מובילה, משימות תומכות, KPI, אימפקט צפוי וביטחון.
+התייחס ל-brand_intelligence כמקור האמת למותג. ה-AI לא מנחש מיתוג כאשר Brand Library זמינה.
+אם Design System Agent לא מאשר, אל תמליץ על פרסום creative אוטונומי; המלץ להשלים/לתקן את Brand Library או ליצור טיוטה בלבד.
+אם קיימים board_advisors, שקף בקצרה את ההכרעה הסופית של Executive Brain אחרי שקלול הפרספקטיבות, בלי להפוך את הבריף לוויכוח פנימי.
+אם marketing_platform מציין ש-Meta MCP דורש הרצה חיצונית, אל תכתוב שנתוני Meta "מנותקים" או "לא זמינים" באופן כללי.
+כתוב בעברית עסקית: "נתוני Meta זמינים דרך MCP, אך הריצה המקומית אינה מפעילה MCP ישירות. נדרש סנכרון דרך ChatGPT/Meta MCP או הפעלת Graph API fallback."
+
+היום לפי זמן מקומי: {datetime.now().strftime("%Y-%m-%d")}
+אל תכתוב באנגלית מלבד השם WhatsApp, שמות מוצרים, ומונחי KPI קיימים מהקונטקסט.
+אל תמציא נתונים מעבר לקונטקסט. אם חסר מידע, ציין שזה נתון זמני או חיבור עתידי.
+לפני החזרת התשובה, בדוק שאין בה את המילים האסורות: נגנבו, WattsApp.
+""".strip()
+
+
+def generate_brief(
+    settings: Settings,
+    company_config: dict[str, Any],
+    decision_context: DecisionContext,
+    hebrew_style_guide: str,
+) -> str:
+    if not settings.openai_api_key:
+        raise RuntimeError("OPENAI_API_KEY is required to generate the brief.")
+
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    response = client.chat.completions.create(
+        model=settings.openai_model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an Israeli Hebrew-speaking CMO chief of staff. "
+                    "Write concise, professional business Hebrew. "
+                    "Always spell WhatsApp exactly as WhatsApp. "
+                    "Never use the Hebrew word נגנבו for leads or inquiries. "
+                    "Return only the CEO brief."
+                ),
+            },
+            {
+                "role": "user",
+                "content": build_prompt(company_config, decision_context, hebrew_style_guide),
+            },
+        ],
+    )
+
+    content = response.choices[0].message.content
+    if not content:
+        raise RuntimeError("OpenAI returned an empty brief.")
+
+    normalized = normalize_brief_language(content.strip())
+    validate_hebrew_brief_style(normalized)
+    return normalized
+
+
+def normalize_brief_language(brief: str) -> str:
+    replacements = {
+        "WattsApp": "WhatsApp",
+        "וואטסאפ": "WhatsApp",
+        "ווטסאפ": "WhatsApp",
+        "Today's bottledneck": "Today's bottleneck",
+        "Todays bottleneck": "Today's bottleneck",
+        "לחומש את": "להגדיל את",
+        "להמריא את": "להגדיל את",
+        "להעביר לידים כשהם מתאימים": "להמיר לידים כשירים",
+        "נגנבו לידים": "נוצרו לידים",
+        "נגנבו פניות": "התקבלו פניות",
+        "נגנבו שיחות": "נפתחו שיחות חדשות",
+        "נגנבו": "התקבלו",
+    }
+    normalized = brief
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+    return normalized
+
+
+def validate_hebrew_brief_style(brief: str) -> None:
+    found = [term for term in FORBIDDEN_TERMS if term in brief]
+    if found:
+        raise RuntimeError(f"Brief contains forbidden Hebrew style terms: {', '.join(found)}")

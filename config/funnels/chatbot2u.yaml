@@ -1,0 +1,8 @@
+primary_kpi: booked_demos
+stages:
+  - conversation_started
+  - qualified_lead
+  - demo_requested
+  - demo_booked
+  - proposal_sent
+  - customer

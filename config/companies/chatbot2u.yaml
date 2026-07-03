@@ -1,0 +1,42 @@
+company:
+  name: ChatBot2U
+  audience: CEO
+  brief_language: Hebrew
+  recipient_email: rami@gateco.ai
+  timezone: Asia/Jerusalem
+
+marketing:
+  primary_kpi: booked demos
+  cta:
+    channel: WhatsApp
+    phone: "+972559720244"
+  budget_rule:
+    amount_ils_per_day: 20
+    saturday: no spend
+    friday: morning only
+    note: Keep spend focused on qualified demo bookings.
+
+business_assets:
+  website_repo: fortisil/ChatBot2U
+  instagram: chatbot2u
+  meta_ad_account_id: "1011149454836521"
+  whatsapp: "+972559720244"
+
+marketing_platform:
+  provider: meta_mcp
+  fallback_provider: meta_graph
+  meta_ad_account_id: "1011149454836521"
+  instagram_username: chatbot2u
+
+mock_data:
+  date_label: today
+  booked_demos: 3
+  target_booked_demos: 5
+  leads: 17
+  qualified_leads: 8
+  whatsapp_clicks: 31
+  landing_page_visits: 214
+  estimated_spend_ils: 18.70
+  top_channel: Instagram DM
+  weakest_channel: Cold audience retargeting
+  notable_signal: More replies came from Hebrew founder-led messaging than generic automation copy.

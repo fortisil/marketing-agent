@@ -1,0 +1,76 @@
+period: Q3 2026
+company_state: Validation
+
+goal:
+  name: 10 paying law firms
+  description: Validate repeatable demand and conversion before scaling spend.
+
+north_star_kpi: booked demos
+
+targets:
+  demos_per_week: 3
+  paying_law_firms: 10
+  cac_ils_max: 400
+  monthly_revenue_ils: 30000
+
+quarterly_okrs:
+  objective: Become the leading AI automation platform for Israeli law firms.
+  key_results:
+    paying_customers: 15
+    demos: 60
+    qualified_leads: 500
+    website_conversion_rate: 0.05
+    instagram_followers: 3000
+
+operating_principles:
+  - Every activity should help ChatBot2U book more qualified demos.
+  - In Validation, learning quality matters more than ad scale.
+  - Prefer customer conversations and fast iteration over polished campaigns.
+  - The AI CMO should never wait for work; when no obvious task exists, proactively review website, repository, marketing, competitors, SEO, sales funnel, WhatsApp conversations, hypotheses, and experiments.
+
+mission_template: Generate one qualified demo booking.
+
+delegated_authority:
+  marketing:
+    create_posts: always
+    publish_posts: always
+    create_post_drafts: always
+    generate_images: always
+    generate_video_scripts: always
+    publish_reels: always
+    reply_to_comments: always
+  ads:
+    create_campaigns: always
+    pause_campaigns: always
+    resume_campaigns: always
+    daily_budget_limit_ils: 20
+    total_monthly_budget_ils: 600
+  website:
+    update_cta: always
+    update_copy: always
+    update_blog: always
+    update_pricing: never
+  sales:
+    schedule_demo: always
+    follow_up: always
+    send_proposal: draft_only
+  business:
+    change_pricing: never
+    sign_contracts: never
+    delete_content: never
+    change_legal_claims: never
+    change_brand_identity: never
+
+weekly_board_meeting:
+  day: Sunday
+  time: "08:30"
+  timezone: Asia/Jerusalem
+  duration_minutes: 20
+  agenda:
+    - Weekly report
+    - Experiments
+    - Successes
+    - Failures
+    - Budget spent
+    - ROI
+    - Next week strategy
