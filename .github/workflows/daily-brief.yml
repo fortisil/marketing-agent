@@ -1,0 +1,33 @@
+name: ChatBot2U Daily Brief
+
+on:
+  schedule:
+    # 08:00 Israel time while Israel is on UTC+3 daylight time.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  daily-brief:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate and send daily brief
+        run: python -m src.main --send-now
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO || 'rami@gateco.ai' }}
+          APP_TIMEZONE: Asia/Jerusalem

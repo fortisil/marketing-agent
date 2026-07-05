@@ -275,7 +275,8 @@ Current model:
 - `--generate-brief` creates delivery-ready artifacts under `memory/`.
 - `--send-now` generates the brief, saves Markdown/JSON, and sends via Resend when `RESEND_API_KEY` and `EMAIL_FROM` are configured.
 - If Resend is not configured, `--send-now` saves the brief, marks delivery as `skipped` in the report, and prints setup instructions.
-- The ChatGPT/Gmail connector remains a manual fallback and can send the saved brief to `rami@gateco.ai`.
+- Production daily delivery should run outside Codex, using the GitHub Actions workflow in `.github/workflows/daily-brief.yml`.
+- The ChatGPT/Gmail connector is only a manual fallback. Codex is for development, not production daily delivery.
 
 Resend settings:
 
@@ -391,9 +392,47 @@ The ChatBot2U config encodes:
 
 See `.env.example` for all supported variables.
 
+## Production Daily Delivery
+
+The production path is GitHub Actions plus Resend. The scheduled workflow runs:
+
+```bash
+python -m src.main --send-now
+```
+
+The workflow runs daily at `05:00 UTC`, which is `08:00` in Israel during UTC+3 daylight time, and also supports manual runs through `workflow_dispatch`.
+
+Configure these GitHub repository secrets before enabling the scheduled run:
+
+```text
+OPENAI_API_KEY
+RESEND_API_KEY
+EMAIL_FROM
+EMAIL_TO
+```
+
+`EMAIL_TO` should normally be `rami@gateco.ai`. If it is not configured, the workflow falls back to `rami@gateco.ai`.
+
+Optional GitHub repository variable:
+
+```text
+OPENAI_MODEL
+```
+
+If `OPENAI_MODEL` is not set, the workflow uses `gpt-4o-mini`.
+
+To send a brief manually:
+
+1. Open the repository in GitHub.
+2. Go to Actions.
+3. Select `ChatBot2U Daily Brief`.
+4. Choose `Run workflow`.
+
+Do not rely on Codex scheduled threads for production daily delivery. Codex sessions can be sandboxed and may block the network calls required for OpenAI and Resend.
+
 ## ChatGPT Delivery Instructions
 
-For daily delivery through the ChatGPT/Gmail connector:
+For manual fallback delivery through the ChatGPT/Gmail connector:
 
 1. Run:
 
