@@ -35,7 +35,7 @@ jobs:
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4o-mini' }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO || 'rami@gateco.ai' }}
+          EMAIL_TO: rami@gateco.ai
           APP_TIMEZONE: Asia/Jerusalem
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID || '1011149454836521' }}
