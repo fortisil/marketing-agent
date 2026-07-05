@@ -10,6 +10,14 @@ The AI Executive OS architecture is complete.
 
 No further architecture work is allowed unless it fixes a production issue. The remaining work is execution, optimization, and measurable business growth. Every sprint must increase autonomous business capability.
 
+The only engineering goal is:
+
+```text
+Increase the probability that ChatBot2U acquires another paying customer without Rami.
+```
+
+Every engineering task must justify itself with this sentence. If it cannot, do not build it.
+
 ## Definition Of Done
 
 The project is complete only when ChatBot2U marketing can operate for 30 consecutive days without requiring Rami.
@@ -43,31 +51,56 @@ Every published asset is automatically analyzed.
 Collect:
 
 - Reach.
+- Impressions.
 - Shares.
 - Saves.
 - Comments.
 - Profile visits.
 - Follower growth.
+- WhatsApp clicks.
+- Demo requests.
+- Customers.
 - Estimated business value.
 - Business Value Score.
+- Confidence.
+- Predicted ROI.
+- Predicted Demo Probability.
+- Predicted Customer Probability.
 
-The AI must rank every post, explain why it performed, and store the learning.
+The AI must rank every post, explain why it succeeded or failed, and store the learning.
+
+Never optimize likes. Optimize customers.
 
 ## Acceptance Test 3: Promotion Brain
 
 Every morning the AI evaluates all published content and selects exactly one asset.
 
-If the Business Value Score exceeds the configured threshold, it launches promotion while respecting:
+The Promotion Brain decides whether to promote. Meta is only the execution connector.
+
+The decision must be based on:
+
+- Business Value Score.
+- Organic performance.
+- Confidence.
+- Current spend.
+- Historical performance.
+
+If the Business Value Score exceeds the configured threshold, it delegates promotion while respecting:
 
 - ILS 20/day budget.
 - Friday morning only.
 - No Saturday spend.
 - No spend beyond delegated authority.
+- One active promotion per content asset.
+- Duplicate campaign protection.
+- Spend reconciliation before launch.
 
 Required evidence:
 
 - Campaign ID.
+- Ad Set ID.
 - Budget.
+- Spend.
 - Start time.
 - Status.
 
@@ -76,15 +109,18 @@ Required evidence:
 Every customer journey should be attributable:
 
 ```text
-Instagram
+Instagram Post
+-> Buffer Post
+-> UTM
 -> WhatsApp click
 -> Conversation
 -> Qualified Lead
--> Demo
--> Customer
+-> Demo Request
+-> Booked Demo
+-> Paying Customer
 ```
 
-Every recommendation should use attribution once attribution data exists.
+Every object must receive an immutable ID. Every transition must be stored. Every recommendation should use attribution once attribution data exists.
 
 ## Acceptance Test 5: Website Optimization
 
@@ -112,8 +148,13 @@ Collect:
 - Demo requests.
 - Booked demos.
 - Customers.
+- Source.
+- UTM.
+- Drop-off reason.
 
 The AI must detect bottlenecks and recommend improvements.
+
+It must answer: why are people dropping off before booking?
 
 ## Acceptance Test 7: Weekly Executive Review
 
@@ -139,6 +180,36 @@ Prediction
 ```
 
 The AI must demonstrate measurable improvement.
+
+## Acceptance Test 8A: Hypothesis Register
+
+Every optimization must become an experiment.
+
+Store:
+
+- Hypothesis.
+- Expected outcome.
+- Confidence.
+- Execution.
+- Result.
+- Learning.
+
+Never repeat failed experiments without a new reason.
+
+## Acceptance Test 8B: Business Memory
+
+Store forever:
+
+- Winning posts.
+- Winning campaigns.
+- Winning headlines.
+- Winning CTAs.
+- Winning publication times.
+- Winning audiences.
+- Customer objections.
+- Lost opportunities.
+
+Every future recommendation must use accumulated business knowledge.
 
 ## Acceptance Test 9: Autonomy
 
@@ -183,6 +254,32 @@ The daily brief should begin with:
 - Marketing ROI trend.
 - Business Autonomy trend.
 - Confidence level.
+
+## Executive Calendar
+
+The AI CMO must operate from a recurring calendar so behavior is intentional rather than random.
+
+- Sunday: Weekly board review.
+- Monday: Publish flagship content.
+- Tuesday: Analyze Monday.
+- Wednesday: Publish educational content.
+- Thursday: Campaign optimization.
+- Friday: Morning recap only.
+- Saturday: No marketing execution.
+
+Workers should know today's schedule before deciding what to execute.
+
+## Self-Evaluation
+
+At the end of every daily run, answer:
+
+1. Did I create measurable business value today?
+2. What evidence supports that?
+3. Which decision had the biggest positive impact?
+4. Which decision was wrong?
+5. What will I do differently tomorrow?
+
+If no measurable business value was created, identify the single highest-impact blocker to remove next.
 
 ## Business Dashboard
 

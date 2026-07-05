@@ -888,6 +888,14 @@ def attach_marketing_department_output(
         decision_context=decision_context,
     )
     decision_context.summary["business_autonomy_index"] = business_autonomy
+    self_evaluation = _self_evaluation(
+        action_log=output.action_log,
+        execution_results=[result.to_dict() for result in output.execution_results],
+        revenue_influence=revenue_influence,
+        blocked=blocked,
+        failed=failed,
+    )
+    decision_context.summary["self_evaluation"] = self_evaluation
     if isinstance(decision_context.summary.get("execution_reality"), dict):
         decision_context.summary["execution_reality"]["prepared_actions"] = []
         decision_context.summary["execution_reality"]["internal_memory_tasks"] = internal_memory
@@ -896,6 +904,7 @@ def attach_marketing_department_output(
         ] = autonomous_work_kpi
         decision_context.summary["execution_reality"]["revenue_influence_score"] = revenue_influence
         decision_context.summary["execution_reality"]["business_autonomy_index"] = business_autonomy
+        decision_context.summary["execution_reality"]["self_evaluation"] = self_evaluation
     decision_context.daily_report.autonomous_action_log.extend(output.action_log)
 
 
@@ -981,6 +990,98 @@ def _safe_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _self_evaluation(
+    *,
+    action_log: list[dict[str, Any]],
+    execution_results: list[dict[str, Any]],
+    revenue_influence: dict[str, Any],
+    blocked: list[str],
+    failed: list[str],
+) -> dict[str, Any]:
+    completed_actions = [
+        action for action in action_log if action.get("status") == "executed"
+    ]
+    completed_results = [
+        result for result in execution_results if result.get("status") == "completed"
+    ]
+    customer_acquisition_results = [
+        result
+        for result in completed_results
+        if (
+            result.get("action") == "publish_social_post"
+            and isinstance(result.get("proof"), dict)
+            and result["proof"].get("instagram_url")
+        )
+        or (
+            result.get("action") == "start_meta_campaign"
+            and isinstance(result.get("proof"), dict)
+            and result["proof"].get("campaign_id")
+        )
+    ]
+    proof_items = [
+        {
+            "action": result.get("action"),
+            "connector": result.get("connector"),
+            "proof": result.get("proof", {}),
+        }
+        for result in customer_acquisition_results
+    ]
+    has_verified_revenue = revenue_influence.get("status") == "verified" and bool(
+        (revenue_influence.get("qualified_leads") or 0)
+        or (revenue_influence.get("booked_demos") or 0)
+        or (revenue_influence.get("customers") or 0)
+    )
+    has_customer_acquisition_artifact = bool(customer_acquisition_results)
+    if has_verified_revenue:
+        value_status = "yes"
+        value_answer = "Yes. Verified funnel data shows measurable customer-acquisition movement."
+    elif has_customer_acquisition_artifact:
+        value_status = "partial"
+        value_answer = "Partially. A customer-acquisition artifact was completed, but revenue attribution is not connected yet."
+    else:
+        value_status = "no"
+        value_answer = "No. No verified customer-acquisition outcome or completed business artifact was created."
+
+    if completed_actions:
+        biggest_positive = str(completed_actions[0].get("action", "Completed autonomous action"))
+    else:
+        biggest_positive = "No completed autonomous action produced measurable business value."
+
+    wrong_decision = "No wrong execution decision detected from available evidence."
+    if failed:
+        wrong_decision = f"Execution failed on: {failed[0]}."
+    elif blocked:
+        wrong_decision = f"The system attempted work that is still blocked: {blocked[0]}."
+    elif not has_verified_revenue:
+        wrong_decision = "The system still cannot prove which activity created leads, demos, or customers."
+
+    blocker = None
+    if value_status == "no":
+        blocker = "Remove the highest-impact blocker: closed-loop attribution from content to WhatsApp to demo to customer."
+    elif value_status == "partial":
+        blocker = "Connect attribution so completed artifacts can be judged by customer-acquisition outcomes."
+
+    return {
+        "questions": [
+            "Did I create measurable business value today?",
+            "What evidence supports that?",
+            "Which decision had the biggest positive impact?",
+            "Which decision was wrong?",
+            "What will I do differently tomorrow?",
+        ],
+        "did_create_measurable_business_value_today": value_status,
+        "business_value_answer": value_answer,
+        "evidence_supporting_value": proof_items,
+        "biggest_positive_impact_decision": biggest_positive,
+        "decision_that_was_wrong": wrong_decision,
+        "do_differently_tomorrow": (
+            "Prioritize the single capability that increases the probability of acquiring another paying customer."
+        ),
+        "highest_impact_blocker": blocker,
+        "optimization_principle": "Never optimize activity. Always optimize customer acquisition.",
+    }
 
 
 def _business_autonomy_index(

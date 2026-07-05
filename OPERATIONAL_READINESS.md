@@ -2,7 +2,7 @@
 
 Date: 2026-07-05  
 Scope: AI Executive OS / ChatBot2U AI CMO  
-Question: If this runs tomorrow morning, what can actually happen, what cannot happen, and what is still risky?
+Question: What prevents the AI CMO from acquiring another paying customer without Rami?
 
 ## Executive Verdict
 
@@ -23,6 +23,50 @@ Not ready because:
 - HeyGen video rendering is not connected.
 
 Remaining work estimate: 4 execution sprints.
+
+## Customer Acquisition Mission
+
+The audit is now business-driven, not architecture-driven.
+
+Every engineering task must justify itself with exactly one sentence:
+
+```text
+This capability increases the probability that ChatBot2U acquires another paying customer.
+```
+
+If that sentence cannot be written honestly, do not build the feature.
+
+The remaining gap in one sentence:
+
+The AI can now execute marketing activities. The next objective is to teach it which activities create customers, and then let it continuously invest more effort in those activities.
+
+## Investor-Style Priority Stack
+
+P0 capabilities are the blockers that prevent this from being a true AI CMO:
+
+| Priority | Capability | Why It Matters To Paying Customers |
+| --- | --- | --- |
+| P0.1 | Closed-loop attribution | Without attribution, the AI cannot know which post, campaign, CTA, or conversation created a customer. |
+| P0.2 | Content Intelligence | Publishing is not enough; the AI must learn what to publish again because it generated leads, demos, or customers. |
+| P0.3 | Promotion Brain | Meta is only a connector. The AI needs a business decision layer that decides whether promotion should happen at all. |
+| P0.4 | Meta Executor + Budget Guard | Paid spend cannot be autonomous until campaigns are created, reconciled, capped, paused, and de-duplicated safely. |
+| P0.5 | WhatsApp Intelligence | The AI must understand why prospects drop off before booking and improve the funnel accordingly. |
+
+P1 capabilities create leverage but are not blockers for the first autonomous customer-acquisition loop:
+
+- Website Optimizer + GitHub PR.
+- HeyGen Executor.
+- Business Scoreboard.
+- Weekly Executive Review.
+- Executive Calendar.
+- Hypothesis Register.
+- Business Memory.
+
+P2 capabilities improve quality or financial precision after the loop works:
+
+- Visual brand validation.
+- CRM connector.
+- Better ROI calculations.
 
 ## Evidence Standard
 
@@ -208,29 +252,98 @@ Top risks before unattended operation:
 7. Website optimization stops at analysis/task preparation; it does not create PRs.
 8. Video generation is only prepared content, not rendered HeyGen assets.
 
+## Autonomy Risks
+
+These are business risks, not bugs:
+
+| Risk | Severity | Mitigation |
+| --- | --- | --- |
+| AI publishes weak content repeatedly | High | Content Intelligence must rank every post by business outcomes, not activity. |
+| AI spends the monthly budget too early | High | Budget Guard must enforce daily/monthly limits and reconcile Meta spend before launch. |
+| AI optimizes likes instead of demos | High | Closed-loop attribution must connect content and campaigns to WhatsApp, demos, and customers. |
+| AI overfits one successful format | Medium | Hypothesis Register must preserve experiments and force continued testing. |
+| AI cannot detect declining performance | High | Weekly Executive Review and Business Scoreboard must track trend changes. |
+| AI repeats a failed experiment | Medium | Business Memory must store rejected hypotheses and lost opportunities. |
+| AI reports activity as progress | High | CEO brief must report Completed, Blocked, Business impact, Evidence, and Next retry only. |
+
+## Executive Calendar Gap
+
+The AI CMO does not yet run from an operating calendar. That creates random behavior risk.
+
+Required cadence:
+
+| Day | Operating Cadence |
+| --- | --- |
+| Sunday | Weekly board review. |
+| Monday | Publish flagship content. |
+| Tuesday | Analyze Monday. |
+| Wednesday | Publish educational content. |
+| Thursday | Campaign optimization. |
+| Friday | Morning recap only. |
+| Saturday | No marketing execution. |
+
+Current status: Missing.
+
+Why it matters: the AI should know whether today is for publishing, analysis, optimization, or review before it assigns workers.
+
+## Business Memory Gap
+
+Technical memory exists. Executive business memory is not yet complete.
+
+Required permanent memory:
+
+- Winning posts.
+- Winning campaigns.
+- Winning headlines.
+- Winning CTAs.
+- Winning publication times.
+- Winning audiences.
+- Customer objections.
+- Lost opportunities.
+
+Current status: Partially Implemented.
+
+Why it matters: six months from now, the AI should remember business discoveries such as "founder videos outperform static images" with confidence, evidence, and the next action.
+
 ## Required Engineering Tasks Before 30-Day Unattended Run
 
 P0:
 
-1. Connect production WhatsApp event webhook or event log with fields: `conversation_id`, `source`, `post_id` or UTM, `qualified`, `requested_demo`, `booked_demo`, `customer`.
-2. Add Instagram/Buffer analytics ingestion for every published post, including reach, saves, shares, comments, profile visits, clicks, and permalink.
-3. Implement Content Intelligence: rank posts, compute Business Value Score, explain performance, store learning.
-4. Implement attribution join from published post/campaign to WhatsApp conversation to demo/customer.
-5. Implement MetaExecutor with campaign create/start/pause, idempotency, campaign evidence, budget checks, and duplicate prevention.
-6. Add live budget enforcement: daily cap, monthly cap, Friday/Saturday rules, current spend reconciliation, one active promotion per selected asset.
+1. Implement closed-loop attribution from Instagram Post -> Buffer Post -> UTM -> WhatsApp Click -> Conversation -> Qualified Lead -> Demo Request -> Booked Demo -> Paying Customer. Every object needs an immutable ID and every transition must be stored.
+2. Implement Content Intelligence: ingest post metrics, WhatsApp clicks, demo requests, customers, Business Value Score, confidence, predicted ROI, predicted demo probability, predicted customer probability, and the reason each post succeeded or failed.
+3. Implement Promotion Brain: rank all published assets each morning, choose exactly one candidate, decide promote/don't promote, and delegate only execution to Meta.
+4. Implement MetaExecutor + Budget Guard with campaign create/start/pause/resume, campaign evidence, one active campaign per asset, duplicate prevention, daily cap, monthly cap, Friday/Saturday rules, and spend reconciliation before launch.
+5. Implement WhatsApp Intelligence: production WhatsApp event webhook with source/UTM, qualification, response time, demo request, booked demo, customer, drop-off reason, and recommendations for improving booking conversion.
 
 P1:
 
-7. Add workflow/run monitoring so failed scheduled runs create an alert/escalation.
-8. Add Weekly Executive Review generated every Sunday.
-9. Add Business Scoreboard computation and trend storage.
-10. Add Website PR Executor for CTA/screenshot/social-proof improvements.
+6. Add Website Optimizer with GitHub PR creation for CTA, screenshots, proof, SEO, performance, and accessibility improvements.
+7. Add HeyGen Executor for Hebrew script -> storyboard -> rendered MP4 -> thumbnail -> captions -> Buffer queue.
+8. Add Business Scoreboard computation and trend storage.
+9. Add Weekly Executive Review generated every Sunday.
+10. Add Executive Calendar so workers know today's operating cadence.
+11. Add Hypothesis Register so every optimization is an experiment with result and learning.
+12. Add Business Memory for winning/failed content, campaigns, CTAs, publication times, audiences, objections, and lost opportunities.
+13. Add workflow/run monitoring so failed scheduled runs create an alert/escalation.
 
 P2:
 
-11. Add HeyGen Executor for script -> rendered MP4 -> thumbnail -> Buffer queue.
-12. Add visual brand validation beyond prompt validation.
-13. Add CRM/customer conversion connector for revenue, CAC, and ROI.
+14. Add visual brand validation beyond prompt validation.
+15. Add CRM/customer conversion connector for revenue, CAC, and ROI.
+16. Add richer ROI calculations after attribution is reliable.
+
+## Sunday Audit Update Requirement
+
+Every Sunday, the system should update this audit automatically and report:
+
+- Current readiness percentage.
+- Which blockers were removed.
+- Which new capabilities were verified.
+- What remains before the AI CMO reaches the 95% readiness target.
+
+Current status: Missing.
+
+This is how the system should answer "Are we autonomous yet?" without waiting for Rami to ask.
 
 ## Go / No-Go
 

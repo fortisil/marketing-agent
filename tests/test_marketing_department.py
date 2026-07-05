@@ -195,6 +195,14 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(influence["metric"], "Revenue Influence Score")
         self.assertEqual(influence["status"], "unavailable")
         self.assertIn("post", influence["traceability_required"])
+        self_evaluation = context.summary["self_evaluation"]
+        self.assertEqual(self_evaluation["did_create_measurable_business_value_today"], "no")
+        self.assertIn("Did I create measurable business value today?", self_evaluation["questions"])
+        self.assertIn("closed-loop attribution", self_evaluation["highest_impact_blocker"])
+        self.assertEqual(
+            self_evaluation["optimization_principle"],
+            "Never optimize activity. Always optimize customer acquisition.",
+        )
 
     def test_file_output_writes_daily_action_memory(self) -> None:
         context = _context()

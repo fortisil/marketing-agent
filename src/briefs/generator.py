@@ -37,15 +37,18 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `self_evaluation`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
 
 Hard rules:
+- Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
+- Never optimize activity. Always optimize customer acquisition.
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
 - Put `Business Autonomy Index` immediately after the trust banner. Show Overall first, then Planning, Execution, Learning, Revenue Influence, and Trend when available.
 - Include `Autonomous Work Completion Rate` after Business Autonomy Index. Show planned tasks, completed automatically, blocked, failed, and success rate.
 - Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
+- Include `Self-Evaluation` near the end. Answer only these five questions from `self_evaluation`: measurable business value, evidence, biggest positive decision, wrong decision, tomorrow's change.
 - Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.
 - The active department is Marketing Operations. The CEO brief must answer: "What did I accomplish for ChatBot2U while you were away?"
@@ -74,7 +77,8 @@ Keep the CEO brief to one page. Include only:
 8. Completed execution.
 9. Blocked or failed execution, with next automatic retry.
 10. Decisions requiring escalation, if any.
-11. Missing verified data only when it affects today's decision.
+11. Self-Evaluation.
+12. Missing verified data only when it affects today's decision.
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
 

@@ -41,6 +41,9 @@ class MetaMcpBriefPromptTests(unittest.TestCase):
 
         self.assertIn("Write a daily CEO brief in English", prompt)
         self.assertIn("No campaign has been verified as active.", prompt)
+        self.assertIn("Never optimize activity. Always optimize customer acquisition.", prompt)
+        self.assertIn("Include `Self-Evaluation`", prompt)
+        self.assertIn("measurable business value", prompt)
         self.assertNotIn("Meta is disconnected", prompt)
         self.assertNotIn("כתוב בריף", prompt)
 
