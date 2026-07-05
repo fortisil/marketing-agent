@@ -62,6 +62,8 @@ class BrandProvider:
             "source": "brand_library",
             "company": self.company_config.get("company", {}).get("name", "ChatBot2U"),
             "brand": brand_config.get("brand", {}),
+            "cta": brand_config.get("cta", {}),
+            "image_generation": brand_config.get("image_generation", {}),
             "colors": colors,
             "logos": logos,
             "typography": brand_config.get("typography", {}),

@@ -140,7 +140,7 @@ class MarketingDepartment:
         brand_intelligence = summary.get("brand_intelligence", {})
 
         agents = self._agents()
-        content_output = self._content_output(cta)
+        content_output = self._content_output(cta, brand_intelligence)
         image_task = self._image_task(brand_intelligence, content_output, decision_context.run_date)
         image_workforce_result = self._run_workforce([image_task])
         image_result = self._result_for(image_workforce_result.execution_results, "ImageExecutor")
@@ -172,7 +172,7 @@ class MarketingDepartment:
         outputs = [
             content_output,
             design_output,
-            self._video_output(cta),
+            self._video_output(cta, brand_intelligence),
             social_output,
             self._ads_output(meta_ads),
             self._analytics_output(whatsapp_bot, meta_ads),
@@ -353,13 +353,66 @@ class MarketingDepartment:
             ),
         ]
 
-    def _content_output(self, cta: dict[str, Any]) -> AgentOutput:
-        phone = cta.get("phone", "+972559720244")
+    def _marketing_language_policy(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
+        company = self.company_config.get("company", {})
+        marketing = self.company_config.get("marketing", {})
+        brand = brand_intelligence.get("brand", {}) if isinstance(brand_intelligence, dict) else {}
+        target_audience = (
+            brand.get("target_audience")
+            or marketing.get("target_audience")
+            or [brand.get("audience") or "Israeli law firms"]
+        )
+        if not isinstance(target_audience, list):
+            target_audience = [str(target_audience)]
+        return {
+            "internal_language": brand.get("internal_language")
+            or company.get("internal_language")
+            or "English",
+            "marketing_language": brand.get("marketing_language")
+            or marketing.get("marketing_language")
+            or brand.get("language")
+            or "Hebrew",
+            "default_post_language": brand.get("default_post_language")
+            or marketing.get("default_post_language")
+            or brand.get("language")
+            or "Hebrew",
+            "target_country": brand.get("target_country") or marketing.get("target_country") or "Israel",
+            "target_audience": target_audience,
+        }
+
+    def _brand_cta(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
+        cta = brand_intelligence.get("cta", {}) if isinstance(brand_intelligence, dict) else {}
+        return cta if isinstance(cta, dict) else {}
+
+    def _whatsapp_link(self, cta: dict[str, Any], brand_intelligence: dict[str, Any]) -> str:
+        brand_cta = self._brand_cta(brand_intelligence)
+        configured_link = str(brand_cta.get("link") or cta.get("link") or "").strip()
+        if configured_link:
+            return configured_link
+        phone = str(brand_cta.get("phone") or cta.get("phone") or "+972559720244")
+        normalized = "".join(ch for ch in phone if ch.isdigit())
+        return f"https://wa.me/{normalized}"
+
+    def _hebrew_whatsapp_cta(self, cta: dict[str, Any], brand_intelligence: dict[str, Any]) -> str:
+        brand_cta = self._brand_cta(brand_intelligence)
+        configured = str(brand_cta.get("default_hebrew") or cta.get("default_hebrew") or "").strip()
+        if configured:
+            return configured
+        return f"רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: {self._whatsapp_link(cta, brand_intelligence)}"
+
+    def _content_output(self, cta: dict[str, Any], brand_intelligence: dict[str, Any]) -> AgentOutput:
+        policy = self._marketing_language_policy(brand_intelligence)
+        hebrew_cta = self._hebrew_whatsapp_cta(cta, brand_intelligence)
         return AgentOutput(
             agent="Content Agent",
             status="prepared",
             daily_output={
                 "publish": "Reel",
+                "language": policy["default_post_language"],
+                "marketing_language": policy["marketing_language"],
+                "internal_language": policy["internal_language"],
+                "target_country": policy["target_country"],
+                "target_audience": policy["target_audience"],
                 "theme": "How AI saves Israeli law firms time before the first consultation.",
                 "format_reason": "Short video is the best awareness format for a founder-led validation push.",
                 "hebrew_copy": (
@@ -369,7 +422,10 @@ class MarketingDepartment:
                 "english_internal_rationale": (
                     "Use a concrete time-saving angle to attract law firms that feel intake friction today."
                 ),
-                "cta": f"Book a demo on WhatsApp: {phone}",
+                "cta": hebrew_cta,
+                "cta_channel": "WhatsApp",
+                "cta_required": True,
+                "whatsapp_link": self._whatsapp_link(cta, brand_intelligence),
                 "posting_time": "10:00 Asia/Jerusalem",
                 "tomorrow_queue": [
                     "Carousel: 5 intake mistakes law firms can automate",
@@ -417,7 +473,7 @@ class MarketingDepartment:
             f"Theme: {content.get('theme')}. "
             "Show WhatsApp client intake becoming a structured qualified demo flow. "
             "Use approved ChatBot2U colors, clean B2B SaaS composition, practical legal-office context, "
-            "clear WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
+            "clear Hebrew WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
         )
         execution_task = ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-image-{run_date}",
@@ -459,15 +515,18 @@ class MarketingDepartment:
             "source": "Brand Brain" if brand_intelligence else "configured brand defaults",
         }
 
-    def _video_output(self, cta: dict[str, Any]) -> AgentOutput:
+    def _video_output(self, cta: dict[str, Any], brand_intelligence: dict[str, Any]) -> AgentOutput:
+        policy = self._marketing_language_policy(brand_intelligence)
+        hebrew_cta = self._hebrew_whatsapp_cta(cta, brand_intelligence)
         return AgentOutput(
             agent="Video Agent",
             status="prepared",
             daily_output={
+                "language": policy["default_post_language"],
                 "heygen_script": (
-                    "Israeli law firms lose time answering the same intake questions. "
-                    "ChatBot2U turns WhatsApp inquiries into structured qualified conversations. "
-                    f"Book a demo today: {cta.get('phone', '+972559720244')}."
+                    "משרדי עורכי דין מאבדים זמן על אותן שאלות פתיחה שוב ושוב. "
+                    "ChatBot2U הופך פניות WhatsApp לשיחות מסודרות שמובילות לדמו כשיר. "
+                    f"{hebrew_cta}"
                 ),
                 "storyboard": [
                     "Problem: repeated intake messages",
@@ -476,7 +535,7 @@ class MarketingDepartment:
                 ],
                 "voice_over": "Confident founder-led Hebrew, practical and direct.",
                 "thumbnail": "Law firm intake before and after ChatBot2U.",
-                "cta": "Book a WhatsApp demo.",
+                "cta": hebrew_cta,
             },
         )
 

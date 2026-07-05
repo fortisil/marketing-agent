@@ -24,6 +24,12 @@ class BrandBrainTests(unittest.TestCase):
         self.assertEqual(brand["source"], "brand_library")
         self.assertEqual(brand["colors"]["primary"], "#0F62FE")
         self.assertIn("logo-dark.svg", brand["logos"]["preferred"])
+        self.assertEqual(brand["brand"]["internal_language"], "English")
+        self.assertEqual(brand["brand"]["marketing_language"], "Hebrew")
+        self.assertEqual(brand["brand"]["default_post_language"], "Hebrew")
+        self.assertEqual(brand["cta"]["link"], "https://wa.me/972559720244")
+        self.assertTrue(brand["cta"]["required_in_posts"])
+        self.assertEqual(brand["image_generation"]["model"], "gpt-image-1")
         self.assertEqual(brand["design_system_review"]["status"], "approved")
 
     def test_brand_provider_returns_unavailable_when_library_missing(self) -> None:

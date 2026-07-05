@@ -18,10 +18,27 @@ from src.providers.base import MetricSnapshot
 
 def _company_config() -> dict:
     return {
-        "company": {"name": "ChatBot2U", "recipient_email": "rami@gateco.ai"},
+        "company": {
+            "name": "ChatBot2U",
+            "recipient_email": "rami@gateco.ai",
+            "internal_language": "English",
+        },
         "marketing": {
             "primary_kpi": "booked demos",
-            "cta": {"channel": "WhatsApp", "phone": "+972559720244"},
+            "marketing_language": "Hebrew",
+            "default_post_language": "Hebrew",
+            "target_country": "Israel",
+            "target_audience": ["Israeli law firms"],
+            "cta": {
+                "channel": "WhatsApp",
+                "phone": "+972559720244",
+                "link": "https://wa.me/972559720244",
+                "required_in_posts": True,
+                "default_hebrew": (
+                    "רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: "
+                    "https://wa.me/972559720244"
+                ),
+            },
             "budget_rule": {
                 "amount_ils_per_day": 20,
                 "saturday": "no spend",
@@ -106,6 +123,11 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(agents[0], "Content Agent")
         self.assertIn("Outreach Agent", agents)
         self.assertEqual(actions["Content Agent"]["status"], "internal_memory")
+        self.assertEqual(actions["Content Agent"]["result"]["language"], "Hebrew")
+        self.assertEqual(actions["Content Agent"]["result"]["internal_language"], "English")
+        self.assertEqual(actions["Content Agent"]["result"]["whatsapp_link"], "https://wa.me/972559720244")
+        self.assertIn("שלחו הודעה ל-WhatsApp", actions["Content Agent"]["result"]["cta"])
+        self.assertNotIn("Book a demo", actions["Content Agent"]["result"]["cta"])
         self.assertEqual(actions["Design Agent"]["status"], "blocked")
         self.assertEqual(actions["Social Agent"]["status"], "blocked")
         self.assertEqual(actions["Ads Agent"]["status"], "blocked")
@@ -116,6 +138,29 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(payload["execution_results"][0]["status"], "blocked")
         self.assertEqual(len(payload["workforce"]["tasks"]), 1)
         self.assertEqual(payload["workforce"]["tasks"][0]["status"], "Blocked")
+
+    def test_social_caption_is_hebrew_first_with_mandatory_whatsapp_cta(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(_context())
+
+        content = {
+            item.agent: item.daily_output
+            for item in output.outputs
+        }["Content Agent"]
+
+        self.assertEqual(content["language"], "Hebrew")
+        self.assertEqual(content["marketing_language"], "Hebrew")
+        self.assertEqual(content["target_country"], "Israel")
+        self.assertEqual(content["target_audience"], ["Israeli law firms"])
+        self.assertTrue(content["cta_required"])
+        self.assertIn("עורכי דין", content["hebrew_copy"])
+        self.assertIn("https://wa.me/972559720244", content["cta"])
+        self.assertNotIn("Book a demo", content["cta"])
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()

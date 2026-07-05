@@ -1,6 +1,12 @@
 brand:
   company: ChatBot2U
   audience: Israeli law firms
+  internal_language: English
+  marketing_language: Hebrew
+  target_country: Israel
+  target_audience:
+    - Israeli law firms
+  default_post_language: Hebrew
   language: Hebrew
   tone:
     - professional
@@ -43,6 +49,13 @@ content_order:
 cta:
   channel: WhatsApp
   phone: "+972559720244"
+  link: "https://wa.me/972559720244"
+  required_in_posts: true
+  default_hebrew: "רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: https://wa.me/972559720244"
+image_generation:
+  provider: openai
+  model: gpt-image-1
+  style: chatbot2u
 rules:
   - Never guess branding when the Brand Library is available.
   - Use repository inference only as fallback for missing brand assets.

@@ -1,15 +1,24 @@
 company:
   name: ChatBot2U
   audience: CEO
+  internal_language: English
   brief_language: en
   recipient_email: rami@gateco.ai
   timezone: Asia/Jerusalem
 
 marketing:
   primary_kpi: booked demos
+  marketing_language: Hebrew
+  default_post_language: Hebrew
+  target_country: Israel
+  target_audience:
+    - Israeli law firms
   cta:
     channel: WhatsApp
     phone: "+972559720244"
+    link: "https://wa.me/972559720244"
+    required_in_posts: true
+    default_hebrew: "רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: https://wa.me/972559720244"
   budget_rule:
     amount_ils_per_day: 20
     saturday: no spend

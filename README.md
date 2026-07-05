@@ -287,6 +287,41 @@ Marketing Operations is the first department and includes:
 - Website Agent
 - Outreach Agent
 
+## Brand Brain Rules
+
+ChatBot2U separates internal reporting language from market-facing language:
+
+- CEO brief language: English.
+- Internal operating language: English.
+- Marketing language: Hebrew.
+- Default social post language: Hebrew.
+- Target country: Israel.
+- Target audience: Israeli law firms.
+
+These rules live in:
+
+```text
+config/companies/chatbot2u.yaml
+knowledge/companies/chatbot2u/brand/brand.yaml
+```
+
+Every published social post must include a WhatsApp action path unless a future Content Analyst records a specific exception. The default CTA is:
+
+```text
+רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: https://wa.me/972559720244
+```
+
+Image generation is also configuration-driven. The current Brand Brain image config is:
+
+```yaml
+image_generation:
+  provider: openai
+  model: gpt-image-1
+  style: chatbot2u
+```
+
+The runtime still reads the active image model from `OPENAI_IMAGE_MODEL`, so model upgrades should be configuration changes, not executor code changes.
+
 The daily CEO brief should answer one question:
 
 ```text
