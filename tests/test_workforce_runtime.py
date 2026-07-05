@@ -38,12 +38,45 @@ class FakeConnector:
         )
 
 
+class IncompletePublishConnector:
+    name = "BufferExecutor"
+
+    def execute(self, task: ExecutionTask) -> ExecutionResult:
+        return ExecutionResult.completed(
+            task,
+            timezone="Asia/Jerusalem",
+            artifact_ids={"buffer_update_id": "update_123"},
+            proof={"buffer_update_id": "update_123"},
+            result={"ok": True},
+        )
+
+
 def _task(task_id: str = "task-1") -> WorkTask:
     execution_task = ExecutionTask(
         id=task_id,
         connector="FakeConnector",
         action="do_work",
         payload={"timezone": "Asia/Jerusalem"},
+        delegated_authority_used="marketing.publish_posts",
+        initiative="Acquire first paying law firms",
+        expected_business_impact="High",
+    )
+    return WorkTask(
+        task_id=task_id,
+        department="Social",
+        capability="publish_social_post",
+        title="Publish social post",
+        execution_task=execution_task,
+        priority=TaskPriority.HIGH,
+    )
+
+
+def _publish_task(task_id: str = "publish-1") -> WorkTask:
+    execution_task = ExecutionTask(
+        id=task_id,
+        connector="BufferExecutor",
+        action="publish_social_post",
+        payload={"timezone": "Asia/Jerusalem", "text": "Test post"},
         delegated_authority_used="marketing.publish_posts",
         initiative="Acquire first paying law firms",
         expected_business_impact="High",
@@ -124,6 +157,24 @@ class WorkforceRuntimeTests(unittest.TestCase):
         self.assertEqual(tasks[0].retry_count, 1)
         self.assertIs(tasks[0].execution_task.payload["dry_run"], False)
         self.assertEqual(tasks[0].priority, TaskPriority.MEDIUM)
+
+    def test_completed_publish_without_required_evidence_is_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runtime = WorkforceRuntime(
+                memory_root=Path(tmpdir),
+                timezone="Asia/Jerusalem",
+                workers=[_worker()],
+                connectors=[IncompletePublishConnector()],
+            )
+            result = runtime.run([_publish_task()])
+            queue = PersistentTaskQueue(Path(tmpdir))
+            tasks = queue.load_tasks()
+
+        self.assertEqual(result.execution_results[0].status, "failed")
+        self.assertEqual(tasks[0].status, TaskStatus.FAILED)
+        self.assertIn("Evidence validation failed", result.execution_results[0].error or "")
+        self.assertIn("instagram_url", result.execution_results[0].result["missing_evidence"])
+        self.assertEqual(result.execution_results[0].worker_id, "social-worker-1")
 
     def test_dependency_prevents_execution_until_verified(self) -> None:
         dependent = _task("task-2")

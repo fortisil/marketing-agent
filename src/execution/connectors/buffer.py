@@ -120,7 +120,15 @@ class BufferExecutor:
 
         update = self._extract_update(response)
         update_id = str(update.get("id") or response.get("id") or "")
-        update_url = str(update.get("url") or update.get("permalink") or response.get("url") or "")
+        update_url = str(
+            update.get("instagram_url")
+            or update.get("service_link")
+            or update.get("url")
+            or update.get("permalink")
+            or response.get("instagram_url")
+            or response.get("url")
+            or ""
+        )
         if not update_id:
             return ExecutionResult.failed(
                 task,
@@ -132,14 +140,23 @@ class BufferExecutor:
 
         proof = {
             "buffer_update_id": update_id,
+            "instagram_url": update_url,
             "url": update_url,
             "profile_id": self.profile_id,
+            "caption_hash": str(task.payload.get("caption_hash") or ""),
+            "image_sha256": str(task.payload.get("image_sha256") or ""),
+            "image_path": str(task.payload.get("image_path") or ""),
             "sent_to_buffer": True,
         }
         return ExecutionResult.completed(
             task,
             timezone=self.timezone,
-            artifact_ids={"buffer_update_id": update_id},
+            artifact_ids={
+                "buffer_update_id": update_id,
+                "instagram_url": update_url,
+                "caption_hash": proof["caption_hash"],
+                "image_sha256": proof["image_sha256"],
+            },
             proof=proof,
             result={"buffer_response": response},
         )

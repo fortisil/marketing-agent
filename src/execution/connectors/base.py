@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Literal, Protocol
 from zoneinfo import ZoneInfo
@@ -49,6 +49,7 @@ class ExecutionResult:
     result: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
     next_retry: str | None = None
+    worker_id: str | None = None
 
     @classmethod
     def completed(
@@ -125,7 +126,16 @@ class ExecutionResult:
             "result": self.result,
             "error": self.error,
             "next_retry": self.next_retry,
+            "worker_id": self.worker_id,
         }
+
+    def with_worker_evidence(self, worker_id: str) -> "ExecutionResult":
+        proof = {
+            **self.proof,
+            "worker_id": worker_id,
+            "timestamp": self.proof.get("timestamp") or self.timestamp,
+        }
+        return replace(self, proof=proof, worker_id=worker_id)
 
 
 class ExecutionConnector(Protocol):

@@ -308,7 +308,7 @@ The brief should show:
 - Failed
 - Success rate
 
-The target is 95%. Internal memory tasks and prepared payloads do not count as completed autonomous work unless a connector returns execution proof.
+The target is 95%. Internal memory tasks and prepared payloads do not count as completed autonomous work unless a connector returns verified execution proof.
 
 The second operating KPI is:
 
@@ -340,9 +340,16 @@ Connector execution results are written to:
 memory/executions/YYYY-MM-DD.json
 ```
 
-Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error. Each connector execution includes task id, connector, status, artifact IDs, proof, error, and next retry.
+Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error. Each connector execution includes task id, connector, status, worker ID, artifact IDs, proof, error, and next retry.
 
-Publishing and campaign execution are never implied. If the AI says it published a Reel, the log must include a URL, timestamp, and Buffer post/update ID. If it says it started a campaign, the log must include campaign ID, budget, status, and verified Meta proof.
+Publishing and campaign execution are never implied. If there is no evidence, the action did not happen. If the AI says it published an Instagram post or Reel, the log must include Buffer update ID, Instagram URL, timestamp, caption hash, image hash, and worker ID. If it says it generated an image, the log must include image path, SHA256 hash, brand validation result, timestamp, and worker ID. If it says it started a campaign, the log must include campaign ID, budget, status, and verified Meta proof.
+
+Connector completion rule:
+
+```text
+business artifact + evidence + execution log = completed
+anything less = blocked or failed
+```
 
 CEO briefs must never talk about infrastructure existence. They should say only:
 

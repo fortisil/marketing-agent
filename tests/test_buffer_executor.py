@@ -11,7 +11,13 @@ def _task(dry_run: bool = False) -> ExecutionTask:
         id="buffer-test",
         connector="BufferExecutor",
         action="publish_social_post",
-        payload={"text": "Test post", "publish_now": True},
+        payload={
+            "text": "Test post",
+            "publish_now": True,
+            "caption_hash": "a" * 64,
+            "image_sha256": "b" * 64,
+            "image_path": "/tmp/image.png",
+        },
         delegated_authority_used="marketing.publish_posts",
         initiative="Acquire first paying law firms",
         expected_business_impact="High",
@@ -78,7 +84,9 @@ class BufferExecutorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.artifact_ids["buffer_update_id"], "update_123")
-        self.assertEqual(result.proof["url"], "https://buffer.com/app/posts/update_123")
+        self.assertEqual(result.proof["instagram_url"], "https://buffer.com/app/posts/update_123")
+        self.assertEqual(result.proof["caption_hash"], "a" * 64)
+        self.assertEqual(result.proof["image_sha256"], "b" * 64)
         self.assertEqual(len(transport.calls), 1)
 
     def test_image_required_post_blocks_without_media(self) -> None:

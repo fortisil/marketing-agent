@@ -43,14 +43,15 @@ Hard rules:
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
-- Put `Autonomous Work Completion Rate` immediately after the trust banner. Show planned tasks, completed automatically, blocked, failed, and success rate.
+- Put `Business Autonomy Index` immediately after the trust banner. Show Overall first, then Planning, Execution, Learning, Revenue Influence, and Trend when available.
+- Include `Autonomous Work Completion Rate` after Business Autonomy Index. Show planned tasks, completed automatically, blocked, failed, and success rate.
 - Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
-- Include `Business Autonomy Index` after Revenue Influence Score. Show Planning, Execution, Learning, Revenue Influence, and Overall.
 - Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.
 - The active department is Marketing Operations. The CEO brief must answer: "What did I accomplish for ChatBot2U while you were away?"
 - Do not ask the CEO to fetch metrics. If Meta/WhatsApp sync is pending, describe it as an internal execution queue item with status and retry.
-- Do not claim content was published, an ad was started, or outreach was sent unless the relevant department action has status `executed` and contains a real URL, post ID, campaign ID, or delivery record.
+- Do not claim content was published, an ad was started, or outreach was sent unless the relevant department action has status `executed` and contains required evidence. If there is no evidence, the action did not happen.
+- For published Instagram content, required evidence is Buffer update ID, Instagram URL, timestamp, caption hash, image hash, and worker ID.
 - Do not tell the CEO that something is "ready", "prepared", or "queued". Prepared tasks belong only in internal memory.
 - Do not describe infrastructure to the CEO. Never write phrases like "publishing path exists", "connector runtime exists", or "execution path is implemented".
 - Only report: Completed, Blocked, Failed, and Next automatic retry.
@@ -64,9 +65,9 @@ Hard rules:
 
 Keep the CEO brief to one page. Include only:
 1. Data confidence trust banner.
-2. Autonomous Work Completion Rate.
-3. Revenue Influence Score.
-4. Business Autonomy Index.
+2. Business Autonomy Index.
+3. Autonomous Work Completion Rate.
+4. Revenue Influence Score.
 5. Executive Summary.
 6. What changed.
 7. Today's initiative.

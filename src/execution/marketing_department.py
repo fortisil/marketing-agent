@@ -489,7 +489,11 @@ class MarketingDepartment:
             daily_output={
                 "executed": result.status == "completed",
                 "connector": "BufferExecutor",
-                "recorded_urls": [result.proof["url"]] if result.proof.get("url") else [],
+                "recorded_urls": (
+                    [result.proof["instagram_url"]]
+                    if result.proof.get("instagram_url")
+                    else []
+                ),
                 "recorded_post_ids": (
                     [result.artifact_ids["buffer_update_id"]]
                     if result.artifact_ids.get("buffer_update_id")
@@ -509,6 +513,7 @@ class MarketingDepartment:
     ) -> WorkTask:
         content = content_output.daily_output
         image_path = image_result.proof.get("image_path") if image_result else ""
+        image_sha256 = image_result.proof.get("sha256") if image_result else ""
         media: dict[str, str] = {}
         if image_path and self.asset_public_base_url:
             media["photo"] = f"{self.asset_public_base_url}/{Path(image_path).name}"
@@ -533,6 +538,7 @@ class MarketingDepartment:
                 "theme": content.get("theme"),
                 "media": media,
                 "image_path": image_path,
+                "image_sha256": image_sha256,
                 "caption_hash": self._caption_hash(content_output),
                 "require_media": True,
             },
@@ -721,7 +727,14 @@ def attach_marketing_department_output(
     decision_context.summary["connector_execution"] = {
         "results": [result.to_dict() for result in output.execution_results],
         "proof_required": {
-            "published_reel": ["url", "buffer_update_id", "timestamp"],
+            "published_reel": [
+                "buffer_update_id",
+                "instagram_url",
+                "timestamp",
+                "caption_hash",
+                "image_sha256",
+                "worker_id",
+            ],
             "started_campaign": ["campaign_id", "budget", "status"],
             "generated_video": ["mp4_path", "storage_location", "execution_log"],
         },

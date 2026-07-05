@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from src.execution.connectors.base import ExecutionConnector, ExecutionResult
 from src.execution.connectors.dispatcher import ExecutionDispatcher
+from src.execution.evidence import EvidenceValidator
 from src.workforce.queue import PersistentTaskQueue
 from src.workforce.task import TaskStatus, WorkTask
 from src.workforce.worker import Worker
@@ -44,6 +45,7 @@ class WorkforceRuntime:
         self.timezone = timezone
         self.default_workers = workers
         self.dispatcher = ExecutionDispatcher(connectors)
+        self.evidence_validator = EvidenceValidator()
 
     def run(self, new_tasks: list[WorkTask]) -> WorkforceRunResult:
         workers = self._load_workers()
@@ -75,6 +77,20 @@ class WorkforceRuntime:
             worker.assign(task.task_id, timestamp=timestamp)
             task.mark_executing(timestamp=timestamp)
             result = self.dispatcher.dispatch([task.execution_task])[0]
+            result = result.with_worker_evidence(worker.worker_id)
+            evidence = self.evidence_validator.validate(result)
+            if not evidence.valid:
+                result = ExecutionResult.failed(
+                    task.execution_task,
+                    timezone=self.timezone,
+                    error="Evidence validation failed; completed action was not verified.",
+                    next_retry="next workforce scheduler run",
+                    result={
+                        "missing_evidence": evidence.missing,
+                        "invalid_evidence": evidence.invalid,
+                        "original_result": result.to_dict(),
+                    },
+                ).with_worker_evidence(worker.worker_id)
             execution_results.append(result)
             worker.record_result(result)
 
