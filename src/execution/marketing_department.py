@@ -563,12 +563,44 @@ def attach_marketing_department_output(
         for action in output.action_log
         if action.get("status") == "failed"
     ]
+    autonomous_work_kpi = _autonomous_work_completion_rate(output.action_log)
     decision_context.summary["executed_actions_today"] = executed or ["none"]
     decision_context.summary["prepared_actions"] = []
     decision_context.summary["internal_memory_tasks"] = internal_memory
     decision_context.summary["blocked_actions"] = blocked
     decision_context.summary["failed_actions"] = failed
+    decision_context.summary["autonomous_work_completion_rate"] = autonomous_work_kpi
     if isinstance(decision_context.summary.get("execution_reality"), dict):
         decision_context.summary["execution_reality"]["prepared_actions"] = []
         decision_context.summary["execution_reality"]["internal_memory_tasks"] = internal_memory
+        decision_context.summary["execution_reality"][
+            "autonomous_work_completion_rate"
+        ] = autonomous_work_kpi
     decision_context.daily_report.autonomous_action_log.extend(output.action_log)
+
+
+def _autonomous_work_completion_rate(action_log: list[dict[str, Any]]) -> dict[str, Any]:
+    connector_facing = [
+        action
+        for action in action_log
+        if action.get("status") in {"executed", "blocked", "failed"}
+    ]
+    planned = len(connector_facing)
+    completed = sum(1 for action in connector_facing if action.get("status") == "executed")
+    blocked = sum(1 for action in connector_facing if action.get("status") == "blocked")
+    failed = sum(1 for action in connector_facing if action.get("status") == "failed")
+    success_rate = round(completed / planned, 2) if planned else None
+    return {
+        "metric": "Autonomous Work Completion Rate",
+        "planned_tasks": planned,
+        "completed_automatically": completed,
+        "blocked": blocked,
+        "failed": failed,
+        "success_rate": success_rate,
+        "success_rate_percent": int(success_rate * 100) if success_rate is not None else None,
+        "target_success_rate_percent": 95,
+        "definition": (
+            "Completed connector-facing work divided by completed, blocked, and failed connector-facing work."
+        ),
+        "excludes": "Internal memory tasks and prepared payloads that have no execution proof.",
+    }

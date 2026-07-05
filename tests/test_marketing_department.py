@@ -131,6 +131,13 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("Prepared today's law-firm Reel content plan", context.summary["internal_memory_tasks"])
         self.assertIn("Dispatched Reel publishing task to BufferExecutor", context.summary["blocked_actions"])
         self.assertIn("connector_execution", context.summary)
+        completion = context.summary["autonomous_work_completion_rate"]
+        self.assertEqual(completion["metric"], "Autonomous Work Completion Rate")
+        self.assertEqual(completion["planned_tasks"], 3)
+        self.assertEqual(completion["completed_automatically"], 0)
+        self.assertEqual(completion["blocked"], 3)
+        self.assertEqual(completion["success_rate_percent"], 0)
+        self.assertEqual(completion["target_success_rate_percent"], 95)
 
     def test_file_output_writes_daily_action_memory(self) -> None:
         context = _context()
@@ -159,6 +166,26 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(executions[0]["connector"], "BufferExecutor")
         self.assertEqual(actions[0]["initiative"], "Acquire the first three paying law firms")
         self.assertIn("delegated_authority_used", actions[0])
+
+    def test_autonomous_work_completion_rate_counts_completed_connector_work(self) -> None:
+        context = _context()
+        output = MarketingDepartment(
+            company_config=_company_config(),
+            objectives_config=_objectives_config(),
+            timezone="Asia/Jerusalem",
+            social_publishing_enabled=True,
+            buffer_access_token="token",
+            buffer_profile_id="profile",
+            execution_dry_run=True,
+        ).run(context)
+        attach_marketing_department_output(context, output)
+
+        completion = context.summary["autonomous_work_completion_rate"]
+
+        self.assertEqual(completion["planned_tasks"], 3)
+        self.assertEqual(completion["completed_automatically"], 0)
+        self.assertEqual(completion["blocked"], 3)
+        self.assertEqual(completion["success_rate"], 0)
 
 
 if __name__ == "__main__":

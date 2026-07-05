@@ -242,6 +242,23 @@ The daily CEO brief should answer one question:
 What did I accomplish for ChatBot2U while you were away?
 ```
 
+The first operating KPI is:
+
+```text
+Autonomous Work Completion Rate =
+completed connector-facing work / completed + blocked + failed connector-facing work
+```
+
+The brief should show:
+
+- Tasks planned
+- Completed automatically
+- Blocked
+- Failed
+- Success rate
+
+The target is 95%. Internal memory tasks and prepared payloads do not count as completed autonomous work unless a connector returns execution proof.
+
 The 14-day acceptance criterion is: the AI Executive OS should come back with more content published, more experiments run, a better website, a complete audit trail, and more qualified demos than when it started.
 
 Department actions are written to:
@@ -259,6 +276,13 @@ memory/executions/YYYY-MM-DD.json
 Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error. Each connector execution includes task id, connector, status, artifact IDs, proof, error, and next retry.
 
 Publishing and campaign execution are never implied. If the AI says it published a Reel, the log must include a URL, timestamp, and Buffer post/update ID. If it says it started a campaign, the log must include campaign ID, budget, status, and verified Meta proof.
+
+CEO briefs must never talk about infrastructure existence. They should say only:
+
+- Completed
+- Blocked
+- Failed
+- Next automatic retry
 
 ## v1.0 Foundation
 
