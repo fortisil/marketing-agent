@@ -19,7 +19,8 @@ REQUIRED_PROOF_BY_ACTION: dict[str, tuple[str, ...]] = {
     ),
     "publish_social_post": (
         "buffer_update_id",
-        "instagram_url",
+        "buffer_post_url",
+        "publish_status",
         "timestamp",
         "caption_hash",
         "image_sha256",
@@ -70,6 +71,11 @@ class EvidenceValidator:
             url = str(proof.get("instagram_url") or "")
             if url and not url.startswith(("http://", "https://")):
                 invalid.append("instagram_url must be an absolute URL")
+            if url and "instagram.com" not in url:
+                invalid.append("instagram_url must be an Instagram permalink")
+            buffer_url = str(proof.get("buffer_post_url") or "")
+            if buffer_url and not buffer_url.startswith(("http://", "https://")):
+                invalid.append("buffer_post_url must be an absolute URL")
             public_url = str(proof.get("public_url") or "")
             if public_url and not public_url.startswith(("http://", "https://")):
                 invalid.append("public_url must be an absolute URL")

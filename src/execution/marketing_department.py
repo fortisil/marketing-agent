@@ -591,6 +591,8 @@ class MarketingDepartment:
                 "recorded_urls": (
                     [result.proof["instagram_url"]]
                     if result.proof.get("instagram_url")
+                    else [result.proof["buffer_post_url"]]
+                    if result.proof.get("buffer_post_url")
                     else []
                 ),
                 "recorded_post_ids": (
@@ -832,7 +834,8 @@ def attach_marketing_department_output(
         "proof_required": {
             "published_reel": [
                 "buffer_update_id",
-                "instagram_url",
+                "buffer_post_url",
+                "publish_status",
                 "timestamp",
                 "caption_hash",
                 "image_sha256",
@@ -1012,7 +1015,7 @@ def _self_evaluation(
         if (
             result.get("action") == "publish_social_post"
             and isinstance(result.get("proof"), dict)
-            and result["proof"].get("instagram_url")
+            and result["proof"].get("buffer_post_url")
         )
         or (
             result.get("action") == "start_meta_campaign"

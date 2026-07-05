@@ -173,7 +173,8 @@ class WorkforceRuntimeTests(unittest.TestCase):
         self.assertEqual(result.execution_results[0].status, "failed")
         self.assertEqual(tasks[0].status, TaskStatus.FAILED)
         self.assertIn("Evidence validation failed", result.execution_results[0].error or "")
-        self.assertIn("instagram_url", result.execution_results[0].result["missing_evidence"])
+        self.assertIn("buffer_post_url", result.execution_results[0].result["missing_evidence"])
+        self.assertIn("publish_status", result.execution_results[0].result["missing_evidence"])
         self.assertEqual(result.execution_results[0].worker_id, "social-worker-1")
 
     def test_dependency_prevents_execution_until_verified(self) -> None:

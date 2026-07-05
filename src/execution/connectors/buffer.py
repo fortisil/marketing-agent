@@ -139,8 +139,10 @@ class BufferExecutor:
             or post.get("serviceLink")
             or post.get("url")
             or post.get("permalink")
-            or post_url
+            or ""
         )
+        instagram_url = service_link if "instagram.com" in service_link else ""
+        publish_status = str(post.get("status") or "")
         if not post_id:
             return ExecutionResult.failed(
                 task,
@@ -153,9 +155,10 @@ class BufferExecutor:
         proof = {
             "buffer_update_id": post_id,
             "buffer_post_id": post_id,
-            "instagram_url": service_link,
-            "url": service_link,
+            "instagram_url": instagram_url,
+            "url": instagram_url or post_url,
             "buffer_post_url": post_url,
+            "publish_status": publish_status,
             "profile_id": self.profile_id,
             "caption_hash": str(task.payload.get("caption_hash") or ""),
             "image_sha256": str(task.payload.get("image_sha256") or ""),
@@ -169,8 +172,9 @@ class BufferExecutor:
             artifact_ids={
                 "buffer_update_id": post_id,
                 "buffer_post_id": post_id,
-                "instagram_url": service_link,
+                "instagram_url": instagram_url,
                 "buffer_post_url": post_url,
+                "publish_status": publish_status,
                 "caption_hash": proof["caption_hash"],
                 "image_sha256": proof["image_sha256"],
                 "public_url": proof["public_url"],

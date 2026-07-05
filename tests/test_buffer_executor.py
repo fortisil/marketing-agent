@@ -115,6 +115,8 @@ class BufferExecutorTests(unittest.TestCase):
         self.assertEqual(result.artifact_ids["buffer_update_id"], "post_123")
         self.assertEqual(result.artifact_ids["buffer_post_id"], "post_123")
         self.assertEqual(result.proof["instagram_url"], "https://www.instagram.com/p/test/")
+        self.assertEqual(result.proof["buffer_post_url"], "https://publish.buffer.com/post/post_123")
+        self.assertEqual(result.proof["publish_status"], "sent")
         self.assertEqual(result.proof["caption_hash"], "a" * 64)
         self.assertEqual(result.proof["image_sha256"], "b" * 64)
         self.assertEqual(result.proof["public_url"], "https://cdn.example.com/image.png")
@@ -132,6 +134,34 @@ class BufferExecutorTests(unittest.TestCase):
             variables["input"]["metadata"],
             {"instagram": {"type": "post", "shouldShareToFeed": True}},
         )
+
+    def test_success_does_not_invent_instagram_permalink_when_buffer_is_sending(self) -> None:
+        transport = FakeBufferTransport(
+            {
+                "data": {
+                    "createPost": {
+                        "post": {
+                            "id": "post_123",
+                            "status": "sending",
+                            "externalLink": None,
+                            "shareMode": "shareNow",
+                        }
+                    }
+                },
+            }
+        )
+        result = BufferExecutor(
+            access_token="token",
+            profile_id="profile",
+            timezone="Asia/Jerusalem",
+            dry_run=False,
+            transport=transport,
+        ).execute(_task())
+
+        self.assertEqual(result.status, "completed")
+        self.assertEqual(result.proof["instagram_url"], "")
+        self.assertEqual(result.proof["buffer_post_url"], "https://publish.buffer.com/post/post_123")
+        self.assertEqual(result.proof["publish_status"], "sending")
 
     def test_image_required_post_blocks_without_media(self) -> None:
         transport = FakeBufferTransport({"data": {"createPost": {"post": {"id": "ignored"}}}})

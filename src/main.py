@@ -438,12 +438,14 @@ def _published_business_artifacts(results: list[dict[str, Any]]) -> list[dict[st
         proof = result.get("proof", {})
         if result.get("action") != "publish_social_post" or not isinstance(proof, dict):
             continue
-        if proof.get("buffer_update_id") and proof.get("instagram_url") and proof.get("worker_id"):
+        if proof.get("buffer_update_id") and proof.get("buffer_post_url") and proof.get("worker_id"):
             artifacts.append(
                 {
                     "type": "instagram_post",
                     "buffer_update_id": proof["buffer_update_id"],
-                    "instagram_url": proof["instagram_url"],
+                    "instagram_url": proof.get("instagram_url") or None,
+                    "buffer_post_url": proof["buffer_post_url"],
+                    "publish_status": proof.get("publish_status"),
                     "timestamp": proof.get("timestamp") or result.get("timestamp"),
                     "caption_hash": proof.get("caption_hash"),
                     "image_sha256": proof.get("image_sha256"),

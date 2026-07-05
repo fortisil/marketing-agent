@@ -30,7 +30,9 @@ class MarketingAcceptanceTests(unittest.TestCase):
                 "timestamp": "2026-07-05T19:00:00+03:00",
                 "proof": {
                     "buffer_update_id": "update_123",
-                    "instagram_url": "https://www.instagram.com/p/test/",
+                    "instagram_url": "",
+                    "buffer_post_url": "https://publish.buffer.com/post/update_123",
+                    "publish_status": "sending",
                     "caption_hash": "a" * 64,
                     "image_sha256": "b" * 64,
                     "worker_id": "marketing-social-worker-1",
@@ -42,6 +44,9 @@ class MarketingAcceptanceTests(unittest.TestCase):
 
         self.assertEqual(artifacts[0]["type"], "instagram_post")
         self.assertEqual(artifacts[0]["buffer_update_id"], "update_123")
+        self.assertIsNone(artifacts[0]["instagram_url"])
+        self.assertEqual(artifacts[0]["buffer_post_url"], "https://publish.buffer.com/post/update_123")
+        self.assertEqual(artifacts[0]["publish_status"], "sending")
 
 
 if __name__ == "__main__":
