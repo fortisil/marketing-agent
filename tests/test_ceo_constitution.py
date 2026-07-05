@@ -23,6 +23,19 @@ class CEOConstitutionTests(unittest.TestCase):
         self.assertIn("additional paying customers", content)
         self.assertIn("No mock data in production", content)
 
+    def test_operational_readiness_audit_defines_unattended_run_gaps(self) -> None:
+        content = Path("OPERATIONAL_READINESS.md").read_text(encoding="utf-8")
+
+        self.assertIn("Production readiness: 61%", content)
+        self.assertIn("Status: Not ready for unattended 30-day operation.", content)
+        self.assertIn("Capability Scorecard", content)
+        self.assertIn("Budget Control Audit", content)
+        self.assertIn("Failure Recovery Audit", content)
+        self.assertIn("Evidence Verification Audit", content)
+        self.assertIn("Go for unattended 30-day operation", content)
+        self.assertIn("MetaExecutor", content)
+        self.assertIn("WhatsApp event webhook", content)
+
 
 if __name__ == "__main__":
     unittest.main()
