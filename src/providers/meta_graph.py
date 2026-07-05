@@ -120,6 +120,8 @@ class MetaGraphProvider:
             "meta_ads": {
                 "available": True,
                 "provider": self.name,
+                "source": "meta_graph",
+                "verified": True,
                 "ad_account_id": self.ad_account_id,
                 "account": account,
                 "campaigns_summary": self._entity_summary(campaigns.get("data", [])),
@@ -129,6 +131,21 @@ class MetaGraphProvider:
                 "last_7_days": self._summarize_insights(last_7_insights),
                 "delivery_errors": delivery_errors,
                 "instagram": instagram,
+                "campaign_status": self._campaign_status(campaigns.get("data", [])),
+                "metric_sources": [
+                    {
+                        "metric": "meta_spend_today",
+                        "value": self._summarize_insights(today_insights)["spend"],
+                        "source": "meta_graph",
+                        "verified": True,
+                    },
+                    {
+                        "metric": "meta_campaign_status",
+                        "value": self._campaign_status(campaigns.get("data", [])),
+                        "source": "meta_graph",
+                        "verified": True,
+                    },
+                ],
             }
         }
 
@@ -289,12 +306,43 @@ class MetaGraphProvider:
                 errors.append(f"{label}: {response['error'].get('message', 'unknown error')}")
         return errors
 
+    def _campaign_status(self, campaigns: list[dict[str, Any]]) -> str:
+        if not campaigns:
+            return "not_started"
+        statuses = {
+            str(campaign.get("effective_status") or campaign.get("status") or "").upper()
+            for campaign in campaigns
+        }
+        if "ACTIVE" in statuses:
+            return "active"
+        if statuses and statuses <= {"PAUSED"}:
+            return "paused"
+        return "unknown"
+
     def _unavailable(self, reason: str, ad_account_id: str = "") -> dict[str, Any]:
         return {
             "available": False,
             "provider": self.name,
             "reason": reason,
             "ad_account_id": ad_account_id,
+            "source": "unavailable",
+            "verified": False,
+            "campaign_status": "unknown",
+            "campaign_status_note": "No campaign has been verified as active.",
+            "metric_sources": [
+                {
+                    "metric": "meta_spend_today",
+                    "value": None,
+                    "source": "unavailable",
+                    "verified": False,
+                },
+                {
+                    "metric": "meta_campaign_status",
+                    "value": "unknown",
+                    "source": "unavailable",
+                    "verified": False,
+                },
+            ],
             "instagram": {
                 "available": False,
                 "reason": "Meta Graph API fallback unavailable.",

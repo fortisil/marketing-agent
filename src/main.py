@@ -84,7 +84,6 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
     logger.info("daily_generation_started")
 
     providers = [
-        MockMetricsProvider(company_config, settings.timezone),
         BrandProvider(company_config, settings.timezone, settings.brand_root, settings.assets_root),
         WebsiteRepoProvider(company_config, settings.timezone, settings.chatbot2u_repo_path),
         MarketingPlatformProvider(
@@ -101,8 +100,12 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
             webhook_url=settings.whatsapp_webhook_url,
             funnel_config=funnel_config,
             timezone=settings.timezone,
+            app_env=settings.app_env,
+            allow_mock_data=settings.allow_mock_data,
         ),
     ]
+    if settings.app_env != "production" or settings.allow_mock_data:
+        providers.insert(0, MockMetricsProvider(company_config, settings.timezone))
     snapshots = [provider.collect() for provider in providers]
     logger.info(
         "metrics_collected",

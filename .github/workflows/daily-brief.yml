@@ -36,6 +36,9 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: rami@gateco.ai
+          APP_ENV: production
+          ALLOW_MOCK_DATA: "false"
+          BRIEF_LANGUAGE: en
           APP_TIMEZONE: Asia/Jerusalem
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID || '1011149454836521' }}

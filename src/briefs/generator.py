@@ -16,12 +16,74 @@ def build_prompt(
     company_config: dict[str, Any],
     decision_context: DecisionContext,
     hebrew_style_guide: str,
+    brief_language: str = "en",
 ) -> str:
     company = company_config["company"]
     marketing = company_config["marketing"]
     budget_rule = marketing["budget_rule"]
     cta = marketing["cta"]
     decision_payload = decision_context.to_prompt_payload()
+    language = (brief_language or company.get("brief_language") or "en").strip().lower()
+
+    if language in {"en", "english"}:
+        return f"""
+Write a daily CEO brief in English for {company["name"]}.
+
+This is not a generic report. It is an AI CMO brief for Rami that must help ChatBot2U make better growth decisions without overstating reality.
+
+Mandatory trust banner at the very top:
+Data confidence:
+- High: real data from connected source
+- Medium: partial real data
+- Low: no verified data / mock disabled
+
+Use the `data_confidence`, `data_status`, `metric_sources`, and `execution_reality` fields from the DailyReport as source of truth.
+
+Hard rules:
+- Never invent KPI numbers.
+- If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
+- Clearly separate real data, mock data, unavailable data, recommended action, prepared action, and executed action.
+- Do not imply that a Meta campaign is active unless `campaign_status` is `active` and verified.
+- If no verified campaign exists, say: "No campaign has been verified as active."
+- If WhatsApp data is unavailable, say: "No verified WhatsApp event data available."
+- Include: "To track WhatsApp leads, connect the WhatsApp bot event log/webhook."
+- Use English headings and English body copy.
+- The CEO brief to Rami must be English. Do not write Hebrew except for brand names, quoted terms, or phone/contact details.
+- Use DailyReport as the source of truth. The email is only a Markdown view of the structured data.
+
+The brief must include:
+1. Data confidence trust banner.
+2. Executive Summary.
+3. Data Reality: real data, unavailable data, and any mock data. If no verified data exists, say exactly "No verified data available yet."
+4. Execution Reality:
+   - Executed actions today
+   - Prepared actions
+   - Recommended actions
+5. Business Health.
+6. Marketing Health.
+7. Funnel Summary. Do not show fake WhatsApp counts.
+8. Campaign Status. Include campaign_status and whether it is verified.
+9. Today's Mission.
+10. Top Three Recommended Actions.
+11. Expected Business Impact.
+12. Risks / Missing Data.
+13. Confidence.
+14. Judgment & Calibration.
+
+Budget rules:
+- Daily budget: ₪{budget_rule["amount_ils_per_day"]}
+- Saturday: {budget_rule["saturday"]}
+- Friday: {budget_rule["friday"]}
+- Note: {budget_rule["note"]}
+
+CTA if relevant: {cta["channel"]} {cta["phone"]}.
+
+Decision context and metrics:
+{decision_payload}
+
+Today by local time: {datetime.now().strftime("%Y-%m-%d")}
+Return only the CEO brief in Markdown.
+""".strip()
 
     return f"""
 כתוב בריף מנכ"ל יומי בעברית עבור {company["name"]}.
@@ -115,22 +177,36 @@ def generate_brief(
 
     client = OpenAI(api_key=settings.openai_api_key)
 
+    brief_language = settings.brief_language or company_config["company"].get("brief_language", "en")
+    system_content = (
+        "You are an AI CMO chief of staff. Write concise, professional English. "
+        "Never invent metrics. If data is unavailable or unverified, say so clearly. "
+        "Separate executed actions from recommended actions. Return only the CEO brief."
+    )
+    if str(brief_language).lower() in {"he", "hebrew", "עברית"}:
+        system_content = (
+            "You are an Israeli Hebrew-speaking CMO chief of staff. "
+            "Write concise, professional business Hebrew. "
+            "Always spell WhatsApp exactly as WhatsApp. "
+            "Never use the Hebrew word נגנבו for leads or inquiries. "
+            "Return only the CEO brief."
+        )
+
     response = client.chat.completions.create(
         model=settings.openai_model,
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are an Israeli Hebrew-speaking CMO chief of staff. "
-                    "Write concise, professional business Hebrew. "
-                    "Always spell WhatsApp exactly as WhatsApp. "
-                    "Never use the Hebrew word נגנבו for leads or inquiries. "
-                    "Return only the CEO brief."
-                ),
+                "content": system_content,
             },
             {
                 "role": "user",
-                "content": build_prompt(company_config, decision_context, hebrew_style_guide),
+                "content": build_prompt(
+                    company_config,
+                    decision_context,
+                    hebrew_style_guide,
+                    brief_language=brief_language,
+                ),
             },
         ],
     )

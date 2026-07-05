@@ -2,13 +2,13 @@
 
 AI Executive Operating System foundation for ChatBot2U. The AI CMO is the first executive.
 
-This version generates a structured daily executive report, renders a Hebrew CEO brief from it, sends it through Resend, and stores memory for learning. The first production KPI is booked demos; the ultimate KPI is paying customers.
+This version generates a structured daily executive report, renders an English CEO brief from it, sends it through Resend, and stores memory for learning. The first production KPI is booked demos; the ultimate KPI is paying customers.
 
 ## What It Does
 
 - Loads company rules from `config/companies/chatbot2u.yaml`
 - Loads company knowledge from `knowledge/chatbot2u.md`
-- Loads Hebrew brief style rules from `knowledge/hebrew_style_guide.md`
+- Supports English CEO briefs by default, with Hebrew style rules available for Hebrew-specific variants
 - Loads objectives from `config/objectives/chatbot2u.yaml`
 - Loads business assets from `config/companies/chatbot2u.yaml`, including website repo, Instagram, Meta ad account, and WhatsApp
 - Loads secrets and runtime settings from `.env`
@@ -17,7 +17,7 @@ This version generates a structured daily executive report, renders a Hebrew CEO
 - Collects WhatsApp bot funnel metrics from a webhook/event log file when configured
 - Uses a state-aware `DecisionEngine` to separate business reasoning from data collection
 - Generates actionable tasks with priority, due date, estimated impact, confidence, and dependencies
-- Generates a Hebrew CEO brief with the OpenAI API
+- Generates an English CEO brief with the OpenAI API
 - Stores daily structured reports, briefs, decisions, and run history under `memory/`
 - Exposes saved Markdown and JSON artifacts for external delivery
 - Runs daily at 08:00 Asia/Jerusalem with APScheduler
@@ -248,9 +248,11 @@ Write the evening journal after a daily report exists:
 python -m src.main --write-evening-journal
 ```
 
-## Hebrew Brief Quality
+## Brief Language Quality
 
-The brief generator uses `knowledge/hebrew_style_guide.md` to keep the CEO brief in professional Israeli business Hebrew. It explicitly avoids bad phrasing such as `נגנבו לידים`, preserves `WhatsApp` spelling, and prefers terms such as `פניות חדשות`, `לידים כשירים`, `פגישות הדגמה שנקבעו`, `המלצה לפעולה`, and `משימה מרכזית להיום`.
+The CEO brief defaults to English via `BRIEF_LANGUAGE=en` and `company.brief_language: en`.
+
+Hebrew generation remains available for Israeli-audience variants. When Hebrew is selected, the generator uses `knowledge/hebrew_style_guide.md` to keep the copy in professional Israeli business Hebrew. It explicitly avoids bad phrasing such as `נגנבו לידים`, preserves `WhatsApp` spelling, and prefers terms such as `פניות חדשות`, `לידים כשירים`, `פגישות הדגמה שנקבעו`, `המלצה לפעולה`, and `משימה מרכזית להיום`.
 
 ## Setup
 
@@ -264,6 +266,28 @@ cp .env.example .env
 Python 3.11+ is required. Python 3.12 is preferred.
 
 Fill in `.env` with your local values. Do not commit `.env`.
+
+## Production Data Rules
+
+Production runs default to:
+
+```bash
+APP_ENV=production
+ALLOW_MOCK_DATA=false
+BRIEF_LANGUAGE=en
+```
+
+Rules:
+
+- Never trust mock data in production.
+- Mock data is only for local development and must be explicitly enabled with `ALLOW_MOCK_DATA=true`.
+- If WhatsApp events are not connected, the report must say `No verified WhatsApp event data available.` and must not show fake conversation, lead, or demo counts.
+- If Meta MCP cannot be invoked by the runner and Graph credentials are not configured, the report must say `No verified Meta campaign data available.`
+- Campaign execution requires a real Meta execution provider. A campaign is not active unless verified by Meta data.
+- WhatsApp lead tracking requires bot event integration through `WHATSAPP_EVENTS_PATH` or `WHATSAPP_WEBHOOK_URL`.
+- Every KPI used for decisions should carry source attribution such as `source: unavailable|mock|json_events|webhook|meta_graph` and `verified: true|false`.
+- The CEO brief must separate recommended actions, prepared actions, and executed actions.
+- If there is no verified data, the brief must say `No verified data available yet`.
 
 ## Delivery Model
 

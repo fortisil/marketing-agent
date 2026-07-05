@@ -34,6 +34,8 @@ class WhatsAppBotProvider:
         funnel_config: Optional[dict[str, Any]] = None,
         timezone: str = "Asia/Jerusalem",
         urlopen_func: Callable[..., Any] = urlopen,
+        app_env: str = "production",
+        allow_mock_data: bool = False,
     ) -> None:
         self.provider = (provider or "mock").strip().lower()
         self.events_path = events_path
@@ -41,12 +43,34 @@ class WhatsAppBotProvider:
         self.funnel_config = funnel_config or {}
         self.timezone = timezone
         self.urlopen_func = urlopen_func
+        self.app_env = (app_env or "production").strip().lower()
+        self.allow_mock_data = allow_mock_data
 
     def collect(self) -> MetricSnapshot:
         collected_at = datetime.now(ZoneInfo(self.timezone))
 
+        if self._mock_forbidden():
+            reason = "No verified WhatsApp event data available."
+            return MetricSnapshot(
+                provider=self.name,
+                collected_at=collected_at,
+                metrics={"whatsapp_bot": self._unavailable(reason)},
+                notes=[
+                    "Production mode forbids mock WhatsApp funnel metrics. "
+                    "To track WhatsApp leads, connect the WhatsApp bot event log/webhook."
+                ],
+            )
+
         try:
             events = self._collect_events(collected_at)
+            if not events and self.app_env == "production":
+                reason = "No verified WhatsApp event data available."
+                return MetricSnapshot(
+                    provider=self.name,
+                    collected_at=collected_at,
+                    metrics={"whatsapp_bot": self._unavailable(reason)},
+                    notes=["To track WhatsApp leads, connect the WhatsApp bot event log/webhook."],
+                )
             metrics = self._summarize(events, collected_at)
         except Exception as exc:  # noqa: BLE001 - provider must never break the morning brief.
             return MetricSnapshot(
@@ -125,6 +149,7 @@ class WhatsAppBotProvider:
             "available": True,
             "provider": self.provider,
             "source": self._source_label(),
+            "verified": self._source_label() != "mock",
             "primary_kpi": self.funnel_config.get("primary_kpi", "booked_demos"),
             "stages": self.funnel_config.get(
                 "stages",
@@ -142,6 +167,7 @@ class WhatsAppBotProvider:
             "total_events_loaded": len(valid_events),
             "today": today_summary,
             "last_7_days": last_7_summary,
+            "metric_sources": self._metric_sources(today_summary, self._source_label(), self._source_label() != "mock"),
             "funnel_health_score": today_summary["funnel_health_score"],
             "today_bottleneck": today_summary["bottleneck"],
             "highest_impact_recommendation": self._recommendation_for_bottleneck(
@@ -273,6 +299,32 @@ class WhatsAppBotProvider:
             return "webhook"
         return "mock"
 
+    def _mock_forbidden(self) -> bool:
+        return self.app_env == "production" and self.provider == "mock" and not self.allow_mock_data
+
+    def _metric_sources(
+        self,
+        today_summary: dict[str, Any],
+        source: str,
+        verified: bool,
+    ) -> list[dict[str, Any]]:
+        metric_names = {
+            "conversations": "whatsapp_conversations_today",
+            "qualified_leads": "whatsapp_qualified_leads_today",
+            "demo_requests": "whatsapp_demo_requests_today",
+            "demo_bookings": "whatsapp_demo_bookings_today",
+            "customers": "whatsapp_customers_today",
+        }
+        return [
+            {
+                "metric": label,
+                "value": today_summary.get(key),
+                "source": source,
+                "verified": verified,
+            }
+            for key, label in metric_names.items()
+        ]
+
     def _mock_events(self, collected_at: datetime) -> list[dict[str, Any]]:
         today = collected_at.date().isoformat()
         yesterday = (collected_at.date() - timedelta(days=1)).isoformat()
@@ -306,11 +358,30 @@ class WhatsAppBotProvider:
         return events
 
     def _unavailable(self, reason: str) -> dict[str, Any]:
+        metric_sources = [
+            {
+                "metric": metric,
+                "value": None,
+                "source": "unavailable",
+                "verified": False,
+            }
+            for metric in (
+                "whatsapp_conversations_today",
+                "whatsapp_qualified_leads_today",
+                "whatsapp_demo_requests_today",
+                "whatsapp_demo_bookings_today",
+                "whatsapp_customers_today",
+            )
+        ]
         return {
             "available": False,
             "provider": self.provider,
             "reason": reason,
+            "source": "unavailable",
+            "verified": False,
             "primary_kpi": self.funnel_config.get("primary_kpi", "booked_demos"),
+            "metric_sources": metric_sources,
+            "integration_instruction": "To track WhatsApp leads, connect the WhatsApp bot event log/webhook.",
             "today": {},
             "last_7_days": {},
         }

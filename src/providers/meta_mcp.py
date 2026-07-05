@@ -30,10 +30,22 @@ class MetaMcpProvider:
         payload: dict[str, Any] = {
             "available": False,
             "provider": self.name,
+            "source": "unavailable",
+            "verified": False,
             "ad_account_id": self.ad_account_id,
             "instagram_username": self.instagram_username,
             "requires_external_mcp_execution": True,
             "instructions": instructions,
+            "campaign_status": "unknown",
+            "campaign_status_note": "No campaign has been verified as active.",
+            "metric_sources": [
+                {
+                    "metric": "meta_campaign_status",
+                    "value": "unknown",
+                    "source": "unavailable",
+                    "verified": False,
+                }
+            ],
         }
         return MetricSnapshot(
             provider=self.name,

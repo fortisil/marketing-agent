@@ -79,6 +79,7 @@ class MarketingPlatformProvider:
         graph_available = bool(graph_payload.get("available"))
         mcp_required = bool(mcp_payload.get("requires_external_mcp_execution"))
         metrics_available = graph_available
+        campaign_status = self._campaign_status(graph_payload, mcp_payload)
 
         graph_api_status = {
             "configured": bool(self.access_token),
@@ -94,6 +95,12 @@ class MarketingPlatformProvider:
             "graph_api_status": graph_api_status,
             "mcp": mcp_payload,
             "meta_ads": graph_payload,
+            "campaign_status": campaign_status,
+            "campaign_status_note": (
+                "No campaign has been verified as active."
+                if campaign_status in {"unknown", "not_started"}
+                else ""
+            ),
         }
 
         notes = []
@@ -113,3 +120,10 @@ class MarketingPlatformProvider:
             },
             notes=notes,
         )
+
+    def _campaign_status(self, graph_payload: dict[str, Any], mcp_payload: dict[str, Any]) -> str:
+        if graph_payload:
+            return str(graph_payload.get("campaign_status") or "unknown")
+        if mcp_payload:
+            return str(mcp_payload.get("campaign_status") or "unknown")
+        return "unknown"

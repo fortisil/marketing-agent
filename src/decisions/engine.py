@@ -72,22 +72,32 @@ class DecisionEngine:
         run_date = now.date().isoformat()
         company_state = str(self.objectives_config.get("company_state", "Validation"))
         delegated_authority = self._delegated_authority()
-
-        booked_demos = int(metrics.get("booked_demos", 0))
-        target_booked_demos = int(metrics.get("target_booked_demos", 0))
-        qualified_leads = int(metrics.get("qualified_leads", 0))
-        whatsapp_clicks = int(metrics.get("whatsapp_clicks", 0))
-        spend = float(metrics.get("estimated_spend_ils", 0.0))
         website_intelligence = metrics.get("website_intelligence", {})
         brand_intelligence = metrics.get("brand_intelligence", {})
         marketing_platform = metrics.get("marketing_platform", {})
         meta_ads = metrics.get("meta_ads", {})
         whatsapp_bot = metrics.get("whatsapp_bot", {})
+
+        booked_demos_observed = self._verified_whatsapp_int(whatsapp_bot, "demo_bookings")
+        qualified_leads_observed = self._verified_whatsapp_int(whatsapp_bot, "qualified_leads")
+        booked_demos = (
+            booked_demos_observed
+            if booked_demos_observed is not None
+            else int(metrics.get("booked_demos", 0) or 0)
+        )
+        target_booked_demos = int(metrics.get("target_booked_demos", 0) or 0)
+        qualified_leads = (
+            qualified_leads_observed
+            if qualified_leads_observed is not None
+            else int(metrics.get("qualified_leads", 0) or 0)
+        )
+        whatsapp_clicks = int(metrics.get("whatsapp_clicks", 0) or 0)
+        spend = float(metrics.get("estimated_spend_ils", 0.0))
         real_spend_today = self._real_spend_today(meta_ads)
         budget_spend = real_spend_today if real_spend_today is not None else spend
 
         budget_decision = self._budget_decision(now, budget_spend, float(budget_rule["amount_ils_per_day"]))
-        objective_status = self._objective_status(booked_demos, budget_spend)
+        objective_status = self._objective_status(booked_demos_observed, budget_spend)
 
         decisions = [
             f"Keep the primary KPI focused on {primary_kpi}.",
@@ -167,14 +177,29 @@ class DecisionEngine:
             "metrics_quality": 0.45,
             "decision_quality": 0.76 if company_state == "Validation" else 0.7,
         }
+        data_confidence = self._data_confidence(whatsapp_bot, meta_ads)
+        metric_sources = self._metric_sources(
+            booked_demos_observed=booked_demos_observed,
+            qualified_leads_observed=qualified_leads_observed,
+            whatsapp_bot=whatsapp_bot,
+            meta_ads=meta_ads,
+        )
+        execution_reality = self._execution_reality(recommendations, chief_of_staff_plan.autonomous_action_log)
         summary = {
+            "data_confidence": data_confidence,
             "primary_kpi": primary_kpi,
-            "booked_demos": booked_demos,
+            "booked_demos": booked_demos_observed,
             "target_booked_demos": target_booked_demos,
-            "qualified_leads": qualified_leads,
-            "whatsapp_clicks": whatsapp_clicks,
+            "qualified_leads": qualified_leads_observed,
+            "whatsapp_clicks": whatsapp_clicks if "whatsapp_clicks" in metrics else None,
             "estimated_spend_ils": spend,
             "real_meta_spend_today_ils": real_spend_today,
+            "metric_sources": metric_sources,
+            "data_status": self._data_status(whatsapp_bot, meta_ads),
+            "execution_reality": execution_reality,
+            "executed_actions_today": execution_reality["executed_actions_today"],
+            "prepared_actions": execution_reality["prepared_actions"],
+            "recommended_actions": execution_reality["recommended_actions"],
             "budget_rule": budget_rule,
             "budget_decision": budget_decision,
             "company_state": company_state,
@@ -235,6 +260,128 @@ class DecisionEngine:
             merged.update(snapshot.metrics)
         return merged
 
+    def _verified_whatsapp_int(self, whatsapp_bot: dict[str, Any], key: str) -> int | None:
+        if not isinstance(whatsapp_bot, dict):
+            return None
+        if not whatsapp_bot.get("available") or not whatsapp_bot.get("verified"):
+            return None
+        today = whatsapp_bot.get("today", {})
+        if not isinstance(today, dict):
+            return None
+        value = today.get(key)
+        if value is None and key == "demo_bookings":
+            value = today.get("demos_booked")
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _data_confidence(self, whatsapp_bot: dict[str, Any], meta_ads: dict[str, Any]) -> dict[str, Any]:
+        verified_sources = [
+            bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("available") and whatsapp_bot.get("verified")),
+            bool(isinstance(meta_ads, dict) and meta_ads.get("available") and meta_ads.get("verified")),
+        ]
+        verified_count = sum(1 for source in verified_sources if source)
+        if verified_count == len(verified_sources):
+            level = "High"
+        elif verified_count:
+            level = "Medium"
+        else:
+            level = "Low"
+        return {
+            "level": level,
+            "definition": {
+                "High": "real data from connected source",
+                "Medium": "partial real data",
+                "Low": "no verified data / mock disabled",
+            },
+            "reason": (
+                "No verified data available yet."
+                if level == "Low"
+                else "At least one connected source returned verified data."
+            ),
+        }
+
+    def _metric_sources(
+        self,
+        *,
+        booked_demos_observed: int | None,
+        qualified_leads_observed: int | None,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        sources = [
+            {
+                "metric": "booked_demos",
+                "value": booked_demos_observed,
+                "source": "whatsapp_bot" if booked_demos_observed is not None else "unavailable",
+                "verified": booked_demos_observed is not None,
+            },
+            {
+                "metric": "qualified_leads",
+                "value": qualified_leads_observed,
+                "source": "whatsapp_bot" if qualified_leads_observed is not None else "unavailable",
+                "verified": qualified_leads_observed is not None,
+            },
+        ]
+        for payload in (whatsapp_bot, meta_ads):
+            if isinstance(payload, dict):
+                sources.extend(payload.get("metric_sources", []))
+        return sources
+
+    def _data_status(self, whatsapp_bot: dict[str, Any], meta_ads: dict[str, Any]) -> dict[str, Any]:
+        whatsapp_available = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("available"))
+        meta_available = bool(isinstance(meta_ads, dict) and meta_ads.get("available"))
+        return {
+            "whatsapp": {
+                "status": "real_data" if whatsapp_available and whatsapp_bot.get("verified") else "unavailable",
+                "message": (
+                    "Verified WhatsApp event data connected."
+                    if whatsapp_available and whatsapp_bot.get("verified")
+                    else "No verified WhatsApp event data available."
+                ),
+            },
+            "meta": {
+                "status": "real_data" if meta_available and meta_ads.get("verified") else "unavailable",
+                "message": (
+                    "Verified Meta campaign data connected."
+                    if meta_available and meta_ads.get("verified")
+                    else "No verified Meta campaign data available."
+                ),
+                "campaign_status": (
+                    meta_ads.get("campaign_status", "unknown")
+                    if isinstance(meta_ads, dict)
+                    else "unknown"
+                ),
+                "campaign_status_note": (
+                    meta_ads.get("campaign_status_note", "No campaign has been verified as active.")
+                    if isinstance(meta_ads, dict)
+                    else "No campaign has been verified as active."
+                ),
+            },
+        }
+
+    def _execution_reality(
+        self,
+        recommendations: list[Recommendation],
+        autonomous_action_log: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        executed = [
+            str(item.get("task"))
+            for item in autonomous_action_log
+            if isinstance(item, dict) and item.get("status") == "executed"
+        ]
+        prepared = [
+            str(item.get("task"))
+            for item in autonomous_action_log
+            if isinstance(item, dict) and item.get("status") in {"prepared", "drafted"}
+        ]
+        return {
+            "executed_actions_today": executed or ["none"],
+            "prepared_actions": prepared,
+            "recommended_actions": [recommendation.title for recommendation in recommendations],
+        }
+
     def _budget_decision(self, now: datetime, spend: float, daily_budget_ils: float) -> str:
         if now.weekday() == 5:
             return "Do not spend today because Saturday is a no-spend day."
@@ -247,7 +394,7 @@ class DecisionEngine:
 
         return "Paid spend may continue only up to the ₪20 daily cap if demo-booking intent remains strong."
 
-    def _objective_status(self, booked_demos: int, spend: float) -> dict[str, Any]:
+    def _objective_status(self, booked_demos: int | None, spend: float) -> dict[str, Any]:
         targets = self.objectives_config.get("targets", {})
         weekly_demo_target = int(targets.get("demos_per_week", 0))
         cac_max = float(targets.get("cac_ils_max", 0))
@@ -259,7 +406,11 @@ class DecisionEngine:
             "north_star_kpi": self.objectives_config.get("north_star_kpi"),
             "weekly_demo_target": weekly_demo_target,
             "booked_demos_observed": booked_demos,
-            "on_track_for_demo_target": booked_demos >= weekly_demo_target if weekly_demo_target else None,
+            "on_track_for_demo_target": (
+                booked_demos >= weekly_demo_target
+                if booked_demos is not None and weekly_demo_target
+                else None
+            ),
             "cac_ils_max": cac_max,
             "projected_cac_ils": projected_cac,
             "cac_on_track": projected_cac <= cac_max if projected_cac is not None and cac_max else None,
@@ -419,6 +570,42 @@ class DecisionEngine:
         whatsapp_bot: dict[str, Any],
         budget_decision: str,
     ) -> dict[str, Any]:
+        if not whatsapp_bot.get("available") or not whatsapp_bot.get("verified"):
+            evaluation_days = int(
+                self.objectives_config.get("prediction_policy", {}).get("evaluation_window_days", 7)
+                if isinstance(self.objectives_config.get("prediction_policy", {}), dict)
+                else 7
+            )
+            due_at = now + timedelta(days=evaluation_days)
+            return {
+                "hypothesis": (
+                    f"Executing '{highest_roi_activity}' will produce one verified learning about "
+                    "the fastest path to booked demos after WhatsApp and campaign tracking are connected."
+                ),
+                "action": highest_roi_activity,
+                "primary_kpi": self.objectives_config.get("north_star_kpi", "booked demos"),
+                "expected_outcome": {
+                    "validated_learning": ">=1",
+                    "verified_whatsapp_data": "required",
+                    "verified_campaign_data": "required",
+                    "timeframe_days": evaluation_days,
+                },
+                "baseline": {
+                    "conversations_today": None,
+                    "qualified_leads_today": None,
+                    "booked_demos_today": None,
+                    "bottleneck": "unknown",
+                },
+                "confidence": 0.52,
+                "created_at": now.isoformat(),
+                "evaluate_after_days": evaluation_days,
+                "evaluation_due_date": due_at.date().isoformat(),
+                "calibration_questions": [
+                    "Was the recommendation useful without verified data?",
+                    "Which data integration changed the decision quality most?",
+                    "What should change next time?",
+                ],
+            }
         today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
         conversations = int(today.get("conversations", 0) or 0)
         qualified = int(today.get("qualified_leads", 0) or 0)
@@ -532,17 +719,29 @@ class DecisionEngine:
         goals = self.objectives_config.get("success_90_days", {})
         whatsapp_bot = metrics.get("whatsapp_bot", {})
         today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
-        demos_booked = int(today.get("demo_bookings", today.get("demos_booked", metrics.get("booked_demos", 0))) or 0)
+        demos_booked = (
+            self._verified_whatsapp_int(whatsapp_bot, "demo_bookings")
+            if isinstance(whatsapp_bot, dict)
+            else None
+        )
         customers = int(today.get("customers", 0) or 0)
-        qualified = int(today.get("qualified_leads", metrics.get("qualified_leads", 0)) or 0)
+        qualified = (
+            self._verified_whatsapp_int(whatsapp_bot, "qualified_leads")
+            if isinstance(whatsapp_bot, dict)
+            else None
+        )
         return {
             "definition": goals,
             "current_signals": {
                 "qualified_leads_today": qualified,
                 "booked_demos_today": demos_booked,
-                "customers_today": customers,
+                "customers_today": customers if whatsapp_bot.get("available") and whatsapp_bot.get("verified") else None,
             },
-            "status": "learning" if demos_booked == 0 and customers == 0 else "evidence_building",
+            "status": (
+                "needs_verified_data"
+                if demos_booked is None and qualified is None
+                else "learning" if demos_booked == 0 and customers == 0 else "evidence_building"
+            ),
             "business_trend_goal": self.objectives_config.get("demo_booking_growth_trend", {}),
             "governance": self.objectives_config.get("governance", {}),
         }
@@ -562,14 +761,18 @@ class DecisionEngine:
     ) -> list[Recommendation]:
         recommendations = [
             Recommendation(
-                title="Convert qualified WhatsApp leads into booked demos",
+                title="Connect verified WhatsApp lead tracking",
                 reason=(
-                    "The North Star KPI is booked demos, and the current demo count is below target."
-                    if target_booked_demos and booked_demos < target_booked_demos
-                    else "Booked demos remain the strongest proof of business value."
+                    "No verified WhatsApp lead or demo data is available yet, so the first growth task is measurement integrity."
+                    if not whatsapp_bot.get("available") or not whatsapp_bot.get("verified")
+                    else (
+                        "The North Star KPI is booked demos, and the current demo count is below target."
+                        if target_booked_demos and booked_demos < target_booked_demos
+                        else "Booked demos remain the strongest proof of business value."
+                    )
                 ),
                 estimated_impact="High",
-                confidence=0.88,
+                confidence=0.84,
             ),
             Recommendation(
                 title="Review WhatsApp conversation drop-offs before changing spend",
@@ -845,18 +1048,18 @@ class DecisionEngine:
         mcp_payload = marketing_platform.get("mcp", {})
         if mcp_payload.get("requires_external_mcp_execution") and not marketing_platform.get("metrics_available"):
             decisions.append(
-                "Meta MCP is the preferred execution layer, but this local AI CMO run cannot invoke MCP tools directly. Use ChatGPT/Meta MCP to fetch live metrics."
+                "No verified Meta campaign data available. Meta MCP is the preferred execution layer, but this local AI CMO run cannot invoke MCP tools directly. Use ChatGPT/Meta MCP to fetch live metrics or configure Graph API credentials."
             )
             actions = marketing_platform.get("mcp_required_actions", [])
             if actions:
                 decisions.append(f"Next Meta MCP actions needed: {'; '.join(str(action) for action in actions)}")
-            risks.append("Live paid-media decisions need ChatGPT/Meta MCP sync or Graph API fallback.")
+            risks.append("No campaign has been verified as active.")
             return decisions, risks
 
         if not meta_ads.get("available"):
             reason = meta_ads.get("reason", "Real Meta metrics are unavailable.")
-            decisions.append(f"Meta/Instagram metrics are unavailable: {reason}")
-            risks.append("Paid media decisions are limited because real Meta metrics are unavailable.")
+            decisions.append(f"No verified Meta campaign data available: {reason}")
+            risks.append("No campaign has been verified as active.")
             return decisions, risks
 
         campaigns_summary = meta_ads.get("campaigns_summary", {})
@@ -898,6 +1101,11 @@ class DecisionEngine:
             reason = whatsapp_bot.get("reason", "WhatsApp bot funnel metrics are unavailable.")
             return [f"WhatsApp bot funnel metrics are unavailable: {reason}"], [
                 "Primary KPI decisions are limited because WhatsApp bot funnel metrics are unavailable."
+            ]
+        if not whatsapp_bot.get("verified"):
+            reason = whatsapp_bot.get("reason", "WhatsApp bot funnel metrics are not verified.")
+            return [f"WhatsApp bot funnel metrics are not verified: {reason}"], [
+                "Do not use mock WhatsApp metrics for production KPI decisions."
             ]
 
         today = whatsapp_bot.get("today", {})
@@ -942,6 +1150,15 @@ class DecisionEngine:
                 Recommendation(
                     title="Connect WhatsApp bot event log",
                     reason=str(whatsapp_bot.get("reason", "WhatsApp bot funnel metrics are unavailable.")),
+                    estimated_impact="High",
+                    confidence=0.84,
+                )
+            ]
+        if not whatsapp_bot.get("verified"):
+            return [
+                Recommendation(
+                    title="Connect WhatsApp bot event log",
+                    reason="No verified WhatsApp event data available. To track WhatsApp leads, connect the WhatsApp bot event log/webhook.",
                     estimated_impact="High",
                     confidence=0.84,
                 )

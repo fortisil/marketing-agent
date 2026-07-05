@@ -32,11 +32,17 @@ class MetaMcpBriefPromptTests(unittest.TestCase):
             }
         )
 
-        prompt = build_prompt(company_config, decision_context, "Always write professional Hebrew.")
+        prompt = build_prompt(
+            company_config,
+            decision_context,
+            "Always write professional Hebrew.",
+            brief_language="en",
+        )
 
-        self.assertIn("נתוני Meta זמינים דרך MCP", prompt)
-        self.assertIn("ChatGPT/Meta MCP", prompt)
+        self.assertIn("Write a daily CEO brief in English", prompt)
+        self.assertIn("No campaign has been verified as active.", prompt)
         self.assertNotIn("Meta is disconnected", prompt)
+        self.assertNotIn("כתוב בריף", prompt)
 
 
 if __name__ == "__main__":

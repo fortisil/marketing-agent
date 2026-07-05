@@ -11,8 +11,11 @@ import yaml
 
 @dataclass(frozen=True)
 class Settings:
+    app_env: str
+    allow_mock_data: bool
     openai_api_key: str
     openai_model: str
+    brief_language: str
     company_config_path: Path
     objectives_config_path: Path
     funnel_config_path: Path
@@ -47,8 +50,11 @@ def load_settings() -> Settings:
     load_dotenv()
 
     return Settings(
+        app_env=os.getenv("APP_ENV", "production").strip().lower() or "production",
+        allow_mock_data=os.getenv("ALLOW_MOCK_DATA", "false").lower() == "true",
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        brief_language=os.getenv("BRIEF_LANGUAGE", "en").strip().lower() or "en",
         company_config_path=Path(os.getenv("COMPANY_CONFIG_PATH", "config/companies/chatbot2u.yaml")),
         objectives_config_path=Path(
             os.getenv("OBJECTIVES_CONFIG_PATH", "config/objectives/chatbot2u.yaml")

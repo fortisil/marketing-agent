@@ -12,7 +12,12 @@ from src.providers.whatsapp_bot import WhatsAppBotProvider
 
 class WhatsAppBotProviderTests(unittest.TestCase):
     def test_mock_mode_returns_funnel_intelligence(self) -> None:
-        provider = WhatsAppBotProvider(provider="mock", timezone="Asia/Jerusalem")
+        provider = WhatsAppBotProvider(
+            provider="mock",
+            timezone="Asia/Jerusalem",
+            app_env="development",
+            allow_mock_data=True,
+        )
 
         fixed_now = datetime(2026, 7, 3, 14, 0, tzinfo=ZoneInfo("Asia/Jerusalem"))
         with patch("src.providers.whatsapp_bot.datetime") as mocked_datetime:
