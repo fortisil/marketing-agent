@@ -25,6 +25,7 @@ from src.config import (
     load_settings,
 )
 from src.decisions.engine import DecisionEngine
+from src.execution.connectors import BufferExecutor
 from src.execution.marketing_department import (
     MarketingDepartment,
     attach_marketing_department_output,
@@ -247,6 +248,25 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
     return payload
 
 
+def check_connectors(settings: Settings) -> dict[str, Any]:
+    buffer_check = BufferExecutor(
+        access_token=settings.buffer_access_token,
+        profile_id=settings.buffer_profile_id,
+        timezone=settings.timezone,
+        dry_run=settings.execution_dry_run,
+    ).check_connection(create_validation_draft=True)
+    payload = {
+        "status": "ok" if buffer_check.get("status") == "ok" else "failed",
+        "connectors": {
+            "BufferExecutor": buffer_check,
+        },
+    }
+    print(json.dumps(payload, ensure_ascii=False))
+    if payload["status"] != "ok":
+        raise SystemExit(2)
+    return payload
+
+
 def _published_business_artifacts(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     artifacts: list[dict[str, Any]] = []
     for result in results:
@@ -405,6 +425,11 @@ def parse_args() -> argparse.Namespace:
         help="With --execute-marketing, exit non-zero unless a verified business artifact was created.",
     )
     parser.add_argument(
+        "--check-connectors",
+        action="store_true",
+        help="Validate external execution connector credentials and access without sending a CEO brief.",
+    )
+    parser.add_argument(
         "--write-evening-journal",
         action="store_true",
         help="Write an evening Executive Journal from the latest daily report.",
@@ -418,7 +443,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     settings = load_settings()
-    configure_logging("ERROR" if args.execute_marketing else settings.log_level)
+    configure_logging("ERROR" if args.execute_marketing or args.check_connectors else settings.log_level)
 
     if args.dry_run:
         dry_run(settings)
@@ -434,6 +459,10 @@ def main() -> None:
 
     if args.execute_marketing:
         execute_marketing(settings, require_business_artifact=args.require_business_artifact)
+        return
+
+    if args.check_connectors:
+        check_connectors(settings)
         return
 
     if args.write_evening_journal:

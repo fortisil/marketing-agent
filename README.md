@@ -471,8 +471,43 @@ Marketing Operations can create internal task payloads without external credenti
 
 Sprint 1 execution connector:
 
-- `BufferExecutor`: accepts a social publishing task, calls Buffer, requires a Buffer update ID, requires public media URL proof for Instagram, records the Instagram URL when returned, and logs completion/failure.
+- `BufferExecutor`: accepts a social publishing task, calls Buffer's current GraphQL API, requires a Buffer post/update ID, requires public media URL proof for Instagram, records the returned Buffer/social URL, and logs completion/failure.
 - `ImageExecutor`: accepts a branded image task, validates Brand Brain inputs, generates a PNG when enabled, stores it under `assets/companies/chatbot2u/social/YYYY-MM-DD/`, uploads it to Cloudinary when configured, records the image path, SHA-256, public URL, and upload provider, and blocks Buffer publishing until public image proof exists.
+
+### Buffer credential setup
+
+Buffer's current publishing API is GraphQL at `https://api.buffer.com`. Do not use the legacy REST endpoint `https://api.bufferapp.com/1/`; current Buffer API keys are rejected there with `Public API tokens are not accepted for REST API access`.
+
+For ChatBot2U production publishing:
+
+1. In Buffer, go to `Settings -> API` and create an API key for the account that owns the `@chatbot2u` Instagram channel, or use a Buffer OAuth access token with `posts:write`, `posts:read`, and `account:read`.
+2. Set `BUFFER_ACCESS_TOKEN` to that Buffer API key/access token.
+3. Find the Instagram Buffer channel ID using the Buffer API:
+
+```bash
+curl -X POST 'https://api.buffer.com' \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $BUFFER_ACCESS_TOKEN" \
+  -d '{"query":"query { account { organizations { id name } } }"}'
+```
+
+Then list channels for the organization:
+
+```bash
+curl -X POST 'https://api.buffer.com' \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $BUFFER_ACCESS_TOKEN" \
+  -d '{"query":"query GetChannels($organizationId: OrganizationId!) { channels(input: { organizationId: $organizationId }) { id name displayName service isQueuePaused } }","variables":{"organizationId":"YOUR_ORGANIZATION_ID"}}'
+```
+
+4. Set `BUFFER_PROFILE_ID` to the Instagram channel ID. The env name is kept for compatibility, but the value must be the current Buffer channel ID, not a legacy REST profile ID.
+5. Validate before attempting a real publish:
+
+```bash
+python -m src.main --check-connectors
+```
+
+The connector check verifies the token, verifies that `BUFFER_PROFILE_ID` is accessible, and creates a Buffer draft validation post with `saveToDraft: true` so `posts:write` is proven without publishing publicly.
 
 Actual publishing requires:
 
@@ -492,10 +527,11 @@ CLOUDINARY_API_SECRET=
 Run the execution-only acceptance command:
 
 ```bash
+python -m src.main --check-connectors
 python -m src.main --execute-marketing --require-business-artifact
 ```
 
-This command does not send the CEO brief. It runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
+These commands do not send the CEO brief. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
 
 The GitHub Actions acceptance workflow is:
 
@@ -514,7 +550,7 @@ Actual campaign creation requires a real Meta execution provider:
 META_EXECUTION_ENABLED=true
 ```
 
-These flags do not make the repo pretend execution happened. A post is published only when the execution log contains Buffer update ID, Instagram URL, timestamp, caption hash, image SHA-256, public image URL, and worker ID. A campaign is active only when verified Meta data confirms it.
+These flags do not make the repo pretend execution happened. A post is published only when the execution log contains Buffer post/update ID, Buffer/social URL, timestamp, caption hash, image SHA-256, public image URL, and worker ID. A campaign is active only when verified Meta data confirms it.
 
 ## Delivery Model
 
