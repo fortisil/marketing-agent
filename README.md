@@ -23,7 +23,7 @@ This version generates a structured daily executive report, renders an English C
 - Runs daily at 08:00 Asia/Jerusalem with APScheduler
 - Supports preview, generate, and send-now CLI commands
 
-For now, all marketing performance inputs are mocked until Instagram, WhatsApp Bot, Meta Ads, and Calendar integrations are added.
+For production, mock marketing performance inputs are forbidden unless explicitly enabled. The system must report unavailable data instead of inventing numbers.
 
 ## Architecture
 
@@ -32,8 +32,10 @@ The daily run is:
 ```text
 Company Knowledge + Objectives + MetricsProvider(s)
     -> DecisionEngine
+    -> ChiefOfStaff
+    -> MarketingDepartment agents
     -> Structured DailyReport
-    -> Hebrew brief
+    -> English CEO brief
     -> OutputChannel
     -> File artifacts for external delivery
 ```
@@ -202,10 +204,54 @@ The AI CMO operates under delegated authority, not continuous approval. It execu
 The operating model is:
 
 ```text
-ExecutiveBrain -> ChiefOfStaff -> Execution
+ExecutiveBrain -> ChiefOfStaff -> Execution Departments
 ```
 
-The ExecutiveBrain defines initiatives. The Chief of Staff chooses what runs today, what can wait, and what conflicts with delegated authority. Every autonomous action records what it did, why it did it, which policy authorized it, the expected outcome, and the actual outcome.
+The ExecutiveBrain defines priorities. The Chief of Staff assigns work. Departments execute. Every autonomous action records what it did, why it did it, which policy authorized it, the expected outcome, and the actual outcome.
+
+## Department Roadmap
+
+The Executive Layer is frozen except for bug fixes. New capabilities should be implemented as autonomous execution departments, not as more executive-brain logic.
+
+Every department agent must have:
+
+- Mission
+- KPIs
+- Delegated authority
+- Memory
+- Execution log
+- Daily output
+- Retry mechanism
+- Error handling
+
+Marketing Operations is the first department and includes:
+
+- Content Agent
+- Design Agent
+- Video Agent
+- Social Agent
+- Ads Agent
+- Analytics Agent
+- Website Agent
+- Outreach Agent
+
+The daily CEO brief should answer one question:
+
+```text
+What did I accomplish for ChatBot2U while you were away?
+```
+
+The 14-day acceptance criterion is: the AI Executive OS should come back with more content published, more experiments run, a better website, a complete audit trail, and more qualified demos than when it started.
+
+Department actions are written to:
+
+```text
+memory/actions/YYYY-MM-DD.json
+```
+
+Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error.
+
+Publishing and campaign execution are never implied. Until real executors are configured, Social Agent and Ads Agent produce prepared or blocked records rather than fake published posts or fake active campaigns.
 
 ## v1.0 Foundation
 
@@ -314,6 +360,26 @@ The CEO brief should stay to one page and include only:
 
 If `executed_actions_today` is `none`, the AI CMO must still produce a useful execution queue for itself.
 
+## Marketing Department Executors
+
+Marketing Operations can prepare content, creative specs, video scripts, CTA patches, outreach drafts, and analytics checks without external credentials.
+
+Actual publishing requires a real executor:
+
+```bash
+SOCIAL_PUBLISHING_ENABLED=true
+BUFFER_ACCESS_TOKEN=
+BUFFER_PROFILE_ID=
+```
+
+Actual campaign creation requires a real Meta execution provider:
+
+```bash
+META_EXECUTION_ENABLED=true
+```
+
+These flags do not make the repo pretend execution happened. They only indicate that the runtime is allowed to hand prepared payloads to a real executor once that executor exists. A post is published only when the action log contains a real URL or post ID. A campaign is active only when verified Meta data confirms it.
+
 ## Delivery Model
 
 The AI CMO produces the brief and can send it independently through Resend.
@@ -403,6 +469,7 @@ memory/briefs/YYYY-MM-DD.md
 memory/decisions/YYYY-MM-DD.json
 memory/reports/YYYY-MM-DD.json
 memory/runs/YYYYMMDD-HHMMSS.json
+memory/actions/YYYY-MM-DD.json
 ```
 
 `memory/reports/YYYY-MM-DD.json` is the source of truth. The Markdown brief is only one view. Later, the same record can power email, dashboard, WhatsApp summary, weekly report, and monthly report.

@@ -25,6 +25,10 @@ from src.config import (
     load_settings,
 )
 from src.decisions.engine import DecisionEngine
+from src.execution.marketing_department import (
+    MarketingDepartment,
+    attach_marketing_department_output,
+)
 from src.logging_config import configure_logging
 from src.memory.journal import write_evening_journal
 from src.providers.brand import BrandProvider
@@ -118,6 +122,15 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
         company_knowledge=executive_knowledge,
         timezone=settings.timezone,
     ).evaluate(snapshots)
+    marketing_department_output = MarketingDepartment(
+        company_config=company_config,
+        objectives_config=objectives_config,
+        timezone=settings.timezone,
+        social_publishing_enabled=settings.social_publishing_enabled,
+        buffer_configured=bool(settings.buffer_access_token and settings.buffer_profile_id),
+        meta_execution_enabled=settings.meta_execution_enabled,
+    ).run(decision_context)
+    attach_marketing_department_output(decision_context, marketing_department_output)
     logger.info(
         "decision_context_created",
         extra={"_run_date": decision_context.run_date},

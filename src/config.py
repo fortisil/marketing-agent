@@ -44,6 +44,10 @@ class Settings:
     whatsapp_provider: str
     whatsapp_events_path: Optional[Path]
     whatsapp_webhook_url: str
+    social_publishing_enabled: bool
+    buffer_access_token: str
+    buffer_profile_id: str
+    meta_execution_enabled: bool
 
 
 def load_settings() -> Settings:
@@ -95,6 +99,10 @@ def load_settings() -> Settings:
             else None
         ),
         whatsapp_webhook_url=os.getenv("WHATSAPP_WEBHOOK_URL", ""),
+        social_publishing_enabled=os.getenv("SOCIAL_PUBLISHING_ENABLED", "false").lower() == "true",
+        buffer_access_token=os.getenv("BUFFER_ACCESS_TOKEN", ""),
+        buffer_profile_id=os.getenv("BUFFER_PROFILE_ID", ""),
+        meta_execution_enabled=os.getenv("META_EXECUTION_ENABLED", "false").lower() == "true",
     )
 
 

@@ -181,6 +181,9 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("Write like an operator, not a reporter.", prompt)
         self.assertIn("Keep the CEO brief to one page.", prompt)
         self.assertIn("execution_queue", prompt)
+        self.assertIn("marketing_department", prompt)
+        self.assertIn("What did I accomplish for ChatBot2U while you were away?", prompt)
+        self.assertIn("Do not claim content was published", prompt)
         self.assertIn("Do not include long internal task lists", prompt)
         self.assertNotIn("כתוב בריף", prompt)
 
