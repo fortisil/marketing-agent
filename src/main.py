@@ -211,6 +211,8 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
     completed = [item for item in results if item.get("status") == "completed"]
     blocked = [item for item in results if item.get("status") == "blocked"]
     failed = [item for item in results if item.get("status") == "failed"]
+    generated_assets = _generated_asset_artifacts(completed)
+    published_artifacts = _published_business_artifacts(completed)
     output = FileOutputChannel(settings.memory_path, settings.timezone).deliver(
         decision_context=execution.decision_context,
         brief=_marketing_execution_markdown(summary),
@@ -219,8 +221,20 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
         delivery=None,
     )
     payload = {
-        "status": "completed" if completed else "blocked" if blocked else "failed" if failed else "no_execution",
-        "business_artifact_created": bool(completed),
+        "status": (
+            "completed"
+            if published_artifacts
+            else "failed"
+            if failed
+            else "blocked"
+            if blocked
+            else "asset_generated"
+            if generated_assets
+            else "no_execution"
+        ),
+        "business_artifact_created": bool(published_artifacts),
+        "published_artifacts": published_artifacts,
+        "generated_assets": generated_assets,
         "run_date": execution.decision_context.run_date,
         "completed": completed,
         "blocked": blocked,
@@ -228,9 +242,49 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
         "paths": {key: str(value) for key, value in output.paths.items()},
     }
     print(json.dumps(payload, ensure_ascii=False))
-    if require_business_artifact and not completed:
+    if require_business_artifact and not published_artifacts:
         raise SystemExit(2)
     return payload
+
+
+def _published_business_artifacts(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    artifacts: list[dict[str, Any]] = []
+    for result in results:
+        proof = result.get("proof", {})
+        if result.get("action") != "publish_social_post" or not isinstance(proof, dict):
+            continue
+        if proof.get("buffer_update_id") and proof.get("instagram_url") and proof.get("worker_id"):
+            artifacts.append(
+                {
+                    "type": "instagram_post",
+                    "buffer_update_id": proof["buffer_update_id"],
+                    "instagram_url": proof["instagram_url"],
+                    "timestamp": proof.get("timestamp") or result.get("timestamp"),
+                    "caption_hash": proof.get("caption_hash"),
+                    "image_sha256": proof.get("image_sha256"),
+                    "worker_id": proof["worker_id"],
+                }
+            )
+    return artifacts
+
+
+def _generated_asset_artifacts(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    artifacts: list[dict[str, Any]] = []
+    for result in results:
+        proof = result.get("proof", {})
+        if result.get("action") != "generate_branded_social_image" or not isinstance(proof, dict):
+            continue
+        if proof.get("public_url") and proof.get("sha256") and proof.get("worker_id"):
+            artifacts.append(
+                {
+                    "type": "branded_image",
+                    "public_url": proof["public_url"],
+                    "sha256": proof["sha256"],
+                    "timestamp": proof.get("timestamp") or result.get("timestamp"),
+                    "worker_id": proof["worker_id"],
+                }
+            )
+    return artifacts
 
 
 def _marketing_execution_markdown(summary: dict[str, Any]) -> str:
