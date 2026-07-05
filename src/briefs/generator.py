@@ -37,7 +37,7 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, and `marketing_department` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Never invent KPI numbers.
@@ -45,7 +45,8 @@ Hard rules:
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
 - Put `Autonomous Work Completion Rate` immediately after the trust banner. Show planned tasks, completed automatically, blocked, failed, and success rate.
 - Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
-- Internal tasks belong to the AI CMO execution queue. Mention only the small number that affects today's initiative or requires escalation.
+- Include `Business Autonomy Index` after Revenue Influence Score. Show Planning, Execution, Learning, Revenue Influence, and Overall.
+- Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.
 - The active department is Marketing Operations. The CEO brief must answer: "What did I accomplish for ChatBot2U while you were away?"
 - Do not ask the CEO to fetch metrics. If Meta/WhatsApp sync is pending, describe it as an internal execution queue item with status and retry.
@@ -65,13 +66,14 @@ Keep the CEO brief to one page. Include only:
 1. Data confidence trust banner.
 2. Autonomous Work Completion Rate.
 3. Revenue Influence Score.
-4. Executive Summary.
-5. What changed.
-6. Today's initiative.
-7. Completed execution.
-8. Blocked or failed execution, with next automatic retry.
-9. Decisions requiring escalation, if any.
-10. Missing verified data only when it affects today's decision.
+4. Business Autonomy Index.
+5. Executive Summary.
+6. What changed.
+7. Today's initiative.
+8. Completed execution.
+9. Blocked or failed execution, with next automatic retry.
+10. Decisions requiring escalation, if any.
+11. Missing verified data only when it affects today's decision.
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
 

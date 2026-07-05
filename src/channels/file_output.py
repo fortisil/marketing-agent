@@ -41,6 +41,8 @@ class FileOutputChannel:
         run_path = self.runs_dir / f"{run_id}.json"
         actions_path = self.root / "actions" / f"{run_date}.json"
         executions_path = self.root / "executions" / f"{run_date}.json"
+        workforce_tasks_path = self.root / "workforce" / "tasks.json"
+        workforce_workers_path = self.root / "workforce" / "workers.json"
 
         brief_path.write_text(brief + "\n", encoding="utf-8")
         report = decision_context.daily_report.to_dict()
@@ -93,6 +95,8 @@ class FileOutputChannel:
                 "run": run_path,
                 "actions": actions_path,
                 "executions": executions_path,
+                "workforce_tasks": workforce_tasks_path,
+                "workforce_workers": workforce_workers_path,
             },
             message=f"Saved brief to {brief_path}",
         )

@@ -90,11 +90,13 @@ def _context():
 
 class MarketingDepartmentTests(unittest.TestCase):
     def test_marketing_department_has_eight_agents_and_truthful_blockers(self) -> None:
-        output = MarketingDepartment(
-            company_config=_company_config(),
-            objectives_config=_objectives_config(),
-            timezone="Asia/Jerusalem",
-        ).run(_context())
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(_context())
 
         payload = output.to_dict()
         agents = [agent["name"] for agent in payload["agents"]]
@@ -112,16 +114,18 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(actions["Social Agent"]["result"]["recorded_post_ids"], [])
         self.assertEqual(payload["execution_results"][0]["connector"], "ImageExecutor")
         self.assertEqual(payload["execution_results"][0]["status"], "blocked")
-        self.assertEqual(payload["execution_results"][1]["connector"], "BufferExecutor")
-        self.assertEqual(payload["execution_results"][1]["result"]["required_connector"], "ImageExecutor")
+        self.assertEqual(payload["workforce"]["tasks"][0]["status"], "Blocked")
+        self.assertEqual(payload["workforce"]["tasks"][1]["status"], "Created")
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()
-        output = MarketingDepartment(
-            company_config=_company_config(),
-            objectives_config=_objectives_config(),
-            timezone="Asia/Jerusalem",
-        ).run(context)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(context)
 
         attach_marketing_department_output(context, output)
 
@@ -149,11 +153,13 @@ class MarketingDepartmentTests(unittest.TestCase):
 
     def test_file_output_writes_daily_action_memory(self) -> None:
         context = _context()
-        output = MarketingDepartment(
-            company_config=_company_config(),
-            objectives_config=_objectives_config(),
-            timezone="Asia/Jerusalem",
-        ).run(context)
+        with tempfile.TemporaryDirectory() as workforce_tmp:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(workforce_tmp),
+            ).run(context)
         attach_marketing_department_output(context, output)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -170,23 +176,24 @@ class MarketingDepartmentTests(unittest.TestCase):
 
         self.assertTrue(actions_path.name.endswith(".json"))
         self.assertEqual(len(actions), 8)
-        self.assertEqual(len(executions), 2)
-        self.assertEqual(executions[0]["connector"], "ImageExecutor")
-        self.assertEqual(executions[1]["connector"], "BufferExecutor")
+        self.assertTrue(any(item["connector"] == "ImageExecutor" for item in executions))
+        self.assertTrue(all(item["status"] in {"completed", "blocked", "failed"} for item in executions))
         self.assertEqual(actions[0]["initiative"], "Acquire the first three paying law firms")
         self.assertIn("delegated_authority_used", actions[0])
 
     def test_autonomous_work_completion_rate_counts_completed_connector_work(self) -> None:
         context = _context()
-        output = MarketingDepartment(
-            company_config=_company_config(),
-            objectives_config=_objectives_config(),
-            timezone="Asia/Jerusalem",
-            social_publishing_enabled=True,
-            buffer_access_token="token",
-            buffer_profile_id="profile",
-            execution_dry_run=True,
-        ).run(context)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                social_publishing_enabled=True,
+                buffer_access_token="token",
+                buffer_profile_id="profile",
+                execution_dry_run=True,
+                memory_root=Path(tmpdir),
+            ).run(context)
         attach_marketing_department_output(context, output)
 
         completion = context.summary["autonomous_work_completion_rate"]

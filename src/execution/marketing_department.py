@@ -10,11 +10,11 @@ from zoneinfo import ZoneInfo
 from src.decisions.engine import DecisionContext
 from src.execution.connectors import (
     BufferExecutor,
-    ExecutionDispatcher,
     ExecutionResult,
     ExecutionTask,
     ImageExecutor,
 )
+from src.workforce import TaskPriority, WorkforceRuntime, WorkTask, Worker
 
 
 @dataclass(frozen=True)
@@ -64,6 +64,7 @@ class MarketingDepartmentOutput:
     agents: list[AgentSpec]
     outputs: list[AgentOutput]
     execution_results: list[ExecutionResult] = field(default_factory=list)
+    workforce: dict[str, Any] = field(default_factory=dict)
     action_log: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -75,6 +76,7 @@ class MarketingDepartmentOutput:
             "agents": [agent.to_dict() for agent in self.agents],
             "outputs": [output.to_dict() for output in self.outputs],
             "execution_results": [result.to_dict() for result in self.execution_results],
+            "workforce": self.workforce,
             "action_log": self.action_log,
         }
 
@@ -101,6 +103,7 @@ class MarketingDepartment:
         openai_image_model: str = "gpt-image-1",
         assets_root: Path | None = None,
         asset_public_base_url: str = "",
+        memory_root: Path | None = None,
         meta_execution_enabled: bool = False,
     ) -> None:
         self.company_config = company_config
@@ -115,6 +118,7 @@ class MarketingDepartment:
         self.openai_image_model = openai_image_model
         self.assets_root = assets_root or Path("assets/companies/chatbot2u")
         self.asset_public_base_url = asset_public_base_url.rstrip("/")
+        self.memory_root = memory_root or Path("memory")
         self.meta_execution_enabled = meta_execution_enabled
 
     def run(self, decision_context: DecisionContext) -> MarketingDepartmentOutput:
@@ -129,14 +133,19 @@ class MarketingDepartment:
 
         agents = self._agents()
         content_output = self._content_output(cta)
-        design_output, image_results = self._design_output(
+        image_task = self._image_task(brand_intelligence, content_output, decision_context.run_date)
+        image_workforce_result = self._run_workforce([image_task])
+        image_result = self._result_for(image_workforce_result.execution_results, "ImageExecutor")
+        buffer_task = self._buffer_task(content_output, image_result=image_result)
+        social_workforce_result = self._run_workforce([buffer_task])
+        execution_results = image_workforce_result.execution_results + social_workforce_result.execution_results
+        buffer_result = self._result_for(execution_results, "BufferExecutor")
+        design_output = self._design_output(
             brand_intelligence,
-            content_output,
-            decision_context.run_date,
+            image_task,
+            image_result,
         )
-        image_result = image_results[0] if image_results else None
-        social_output, social_results = self._social_output(content_output, image_result)
-        execution_results = image_results + social_results
+        social_output = self._social_output(content_output, image_result, buffer_result)
         outputs = [
             content_output,
             design_output,
@@ -168,8 +177,53 @@ class MarketingDepartment:
             agents=agents,
             outputs=outputs,
             execution_results=execution_results,
+            workforce={
+                "workers": [worker.to_dict() for worker in social_workforce_result.workers],
+                "tasks": [task.to_dict() for task in social_workforce_result.tasks],
+                "escalations": image_workforce_result.escalations + social_workforce_result.escalations,
+            },
             action_log=action_log,
         )
+
+    def _run_workforce(self, tasks: list[WorkTask]):
+        runtime = WorkforceRuntime(
+            memory_root=self.memory_root,
+            timezone=self.timezone,
+            workers=self._workers(),
+            connectors=[
+                ImageExecutor(
+                    api_key=self.openai_api_key,
+                    assets_root=self.assets_root,
+                    timezone=self.timezone,
+                    enabled=self.image_generation_enabled,
+                    dry_run=self.execution_dry_run,
+                    model=self.openai_image_model,
+                ),
+                BufferExecutor(
+                    access_token=self.buffer_access_token,
+                    profile_id=self.buffer_profile_id,
+                    timezone=self.timezone,
+                    dry_run=self.execution_dry_run,
+                ),
+            ],
+        )
+        return runtime.run(tasks)
+
+    def _workers(self) -> list[Worker]:
+        return [
+            Worker(
+                worker_id="marketing-design-worker-1",
+                department="Design",
+                capabilities=["generate_branded_social_image"],
+                kpis={"primary": "brand_safe_images_generated"},
+            ),
+            Worker(
+                worker_id="marketing-social-worker-1",
+                department="Social",
+                capabilities=["publish_social_post"],
+                kpis={"primary": "published_posts_with_proof"},
+            ),
+        ]
 
     def _agents(self) -> list[AgentSpec]:
         authority = self.objectives_config.get("delegated_authority", {})
@@ -289,44 +343,35 @@ class MarketingDepartment:
     def _design_output(
         self,
         brand_intelligence: dict[str, Any],
-        content_output: AgentOutput,
-        run_date: str,
-    ) -> tuple[AgentOutput, list[ExecutionResult]]:
-        task = self._image_task(brand_intelligence, content_output, run_date)
-        result = ExecutionDispatcher(
-            [
-                ImageExecutor(
-                    api_key=self.openai_api_key,
-                    assets_root=self.assets_root,
-                    timezone=self.timezone,
-                    enabled=self.image_generation_enabled,
-                    dry_run=self.execution_dry_run,
-                    model=self.openai_image_model,
-                )
-            ]
-        ).dispatch([task])[0]
+        task: WorkTask,
+        result: ExecutionResult | None,
+    ) -> AgentOutput:
+        execution_task = task.execution_task
+        status = result.status if result else "blocked"
         return AgentOutput(
             agent="Design Agent",
-            status=result.status,
+            status=status,
             daily_output={
                 "asset_specs": ["Instagram Reel cover", "Story frame", "thumbnail"],
                 "brand_source": "Brand Brain" if brand_intelligence else "configured brand defaults",
-                "image_prompt": task.payload["prompt"],
-                "alt_text": task.payload["alt_text"],
+                "image_prompt": execution_task.payload["prompt"],
+                "alt_text": execution_task.payload["alt_text"],
                 "guardrail": "Do not publish creative that conflicts with the approved logo or brand colors.",
-                "executed": result.status == "completed",
-                "image_path": result.proof.get("image_path"),
-                "execution_result": result.to_dict(),
+                "executed": bool(result and result.status == "completed"),
+                "image_path": result.proof.get("image_path") if result else None,
+                "worker_id": task.assigned_worker_id,
+                "task_id": task.task_id,
+                "execution_result": result.to_dict() if result else None,
             },
-            error=result.error,
-        ), [result]
+            error=result.error if result else "waiting_for_design_worker",
+        )
 
     def _image_task(
         self,
         brand_intelligence: dict[str, Any],
         content_output: AgentOutput,
         run_date: str,
-    ) -> ExecutionTask:
+    ) -> WorkTask:
         content = content_output.daily_output
         brand_assets = self._brand_assets(brand_intelligence)
         prompt = (
@@ -336,7 +381,7 @@ class MarketingDepartment:
             "Use approved ChatBot2U colors, clean B2B SaaS composition, practical legal-office context, "
             "clear WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
         )
-        return ExecutionTask(
+        execution_task = ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-image",
             connector="ImageExecutor",
             action="generate_branded_social_image",
@@ -351,6 +396,15 @@ class MarketingDepartment:
                 "brand_assets": brand_assets,
                 "alt_text": "ChatBot2U turns WhatsApp inquiries for law firms into structured demo-ready conversations.",
             },
+        )
+        return WorkTask(
+            task_id=execution_task.id,
+            department="Design",
+            capability="generate_branded_social_image",
+            title="Generate brand-safe Instagram image",
+            execution_task=execution_task,
+            priority=TaskPriority.HIGH,
+            max_retries=3,
         )
 
     def _brand_assets(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
@@ -391,11 +445,11 @@ class MarketingDepartment:
         self,
         content_output: AgentOutput,
         image_result: ExecutionResult | None,
-    ) -> tuple[AgentOutput, list[ExecutionResult]]:
-        task = self._buffer_task(content_output, image_result)
+        result: ExecutionResult | None,
+    ) -> AgentOutput:
         if image_result is None or image_result.status != "completed":
-            result = ExecutionResult.blocked(
-                task,
+            blocked_result = result or ExecutionResult.blocked(
+                self._buffer_task(content_output, image_result).execution_task,
                 timezone=self.timezone,
                 error="Image proof is required before publishing Instagram content.",
                 next_retry="after ImageExecutor completes",
@@ -416,45 +470,18 @@ class MarketingDepartment:
                     "recorded_post_ids": [],
                     "image_path": None,
                     "caption_hash": self._caption_hash(content_output),
-                    "execution_result": result.to_dict(),
+                    "execution_result": blocked_result.to_dict(),
                 },
                 error="waiting_for_image_executor",
-            ), [result]
-
-        if not self.social_publishing_enabled:
-            result = ExecutionResult.blocked(
-                task,
-                timezone=self.timezone,
-                error="Social publishing is disabled for this runtime.",
-                next_retry="enable SOCIAL_PUBLISHING_ENABLED with Buffer credentials",
-                result={"connector": "BufferExecutor"},
             )
-            return AgentOutput(
-                agent="Social Agent",
-                status="blocked",
-                daily_output={
-                    "executed": False,
-                    "reason": "Social publishing is disabled for this runtime.",
-                    "connector": "BufferExecutor",
-                    "recorded_urls": [],
-                    "recorded_post_ids": [],
-                    "image_path": image_result.proof.get("image_path"),
-                    "caption_hash": self._caption_hash(content_output),
-                    "execution_result": result.to_dict(),
-                },
-                error="social_publishing_disabled",
-            ), [result]
 
-        result = ExecutionDispatcher(
-            [
-                BufferExecutor(
-                    access_token=self.buffer_access_token,
-                    profile_id=self.buffer_profile_id,
-                    timezone=self.timezone,
-                    dry_run=self.execution_dry_run,
-                )
-            ]
-        ).dispatch([task])[0]
+        if result is None:
+            result = ExecutionResult.blocked(
+                self._buffer_task(content_output, image_result).execution_task,
+                timezone=self.timezone,
+                error="Social worker has not executed Buffer task yet.",
+                next_retry="next workforce scheduler run",
+            )
 
         return AgentOutput(
             agent="Social Agent",
@@ -473,19 +500,19 @@ class MarketingDepartment:
                 "execution_result": result.to_dict(),
             },
             error=result.error,
-        ), [result]
+        )
 
     def _buffer_task(
         self,
         content_output: AgentOutput,
         image_result: ExecutionResult | None,
-    ) -> ExecutionTask:
+    ) -> WorkTask:
         content = content_output.daily_output
         image_path = image_result.proof.get("image_path") if image_result else ""
         media: dict[str, str] = {}
         if image_path and self.asset_public_base_url:
             media["photo"] = f"{self.asset_public_base_url}/{Path(image_path).name}"
-        return ExecutionTask(
+        execution_task = ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-buffer-reel",
             connector="BufferExecutor",
             action="publish_social_post",
@@ -510,6 +537,22 @@ class MarketingDepartment:
                 "require_media": True,
             },
         )
+        return WorkTask(
+            task_id=execution_task.id,
+            department="Social",
+            capability="publish_social_post",
+            title="Publish Instagram post through Buffer",
+            execution_task=execution_task,
+            priority=TaskPriority.HIGH,
+            dependencies=[f"{self.department.lower().replace(' ', '-')}-image"],
+            max_retries=3,
+        )
+
+    def _result_for(self, results: list[ExecutionResult], connector: str) -> ExecutionResult | None:
+        for result in results:
+            if result.connector == connector:
+                return result
+        return None
 
     def _caption_hash(self, content_output: AgentOutput) -> str:
         content = content_output.daily_output
@@ -683,6 +726,7 @@ def attach_marketing_department_output(
             "generated_video": ["mp4_path", "storage_location", "execution_log"],
         },
     }
+    decision_context.summary["workforce"] = output.workforce
     decision_context.summary["execution_departments"] = {
         "frozen_executive_layer": True,
         "active_department": "Marketing Operations",
@@ -721,6 +765,12 @@ def attach_marketing_department_output(
     decision_context.summary["autonomous_work_completion_rate"] = autonomous_work_kpi
     revenue_influence = _revenue_influence_score(decision_context, output.action_log)
     decision_context.summary["revenue_influence_score"] = revenue_influence
+    business_autonomy = _business_autonomy_index(
+        autonomous_work=autonomous_work_kpi,
+        revenue_influence=revenue_influence,
+        decision_context=decision_context,
+    )
+    decision_context.summary["business_autonomy_index"] = business_autonomy
     if isinstance(decision_context.summary.get("execution_reality"), dict):
         decision_context.summary["execution_reality"]["prepared_actions"] = []
         decision_context.summary["execution_reality"]["internal_memory_tasks"] = internal_memory
@@ -728,6 +778,7 @@ def attach_marketing_department_output(
             "autonomous_work_completion_rate"
         ] = autonomous_work_kpi
         decision_context.summary["execution_reality"]["revenue_influence_score"] = revenue_influence
+        decision_context.summary["execution_reality"]["business_autonomy_index"] = business_autonomy
     decision_context.daily_report.autonomous_action_log.extend(output.action_log)
 
 
@@ -813,3 +864,29 @@ def _safe_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _business_autonomy_index(
+    *,
+    autonomous_work: dict[str, Any],
+    revenue_influence: dict[str, Any],
+    decision_context: DecisionContext,
+) -> dict[str, Any]:
+    planning = 100
+    execution = int(autonomous_work.get("success_rate_percent") or 0)
+    data_confidence = decision_context.summary.get("data_confidence", {})
+    learning = {"High": 90, "Medium": 65, "Low": 25}.get(str(data_confidence.get("level")), 25)
+    revenue = int(revenue_influence.get("score") or 0)
+    overall = round((planning * 0.2) + (execution * 0.4) + (learning * 0.2) + (revenue * 0.2))
+    return {
+        "metric": "Business Autonomy Index",
+        "planning_percent": planning,
+        "execution_percent": execution,
+        "learning_percent": learning,
+        "revenue_influence_percent": revenue,
+        "overall_percent": overall,
+        "threshold_for_autonomous_operator": 90,
+        "definition": (
+            "Weighted score for whether the AI Executive OS can turn plans into verified business outcomes."
+        ),
+    }

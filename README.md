@@ -204,10 +204,10 @@ The AI CMO operates under delegated authority, not continuous approval. It execu
 The operating model is:
 
 ```text
-ExecutiveBrain -> ChiefOfStaff -> Execution Departments
+ExecutiveBrain -> ChiefOfStaff -> Task Queue -> Workers -> Execution Connectors
 ```
 
-The ExecutiveBrain defines priorities. The Chief of Staff assigns work. Departments execute. Every autonomous action records what it did, why it did it, which policy authorized it, the expected outcome, and the actual outcome.
+The ExecutiveBrain defines initiatives. The Chief of Staff decomposes initiatives into work. Persistent workers own tasks until completion. Execution connectors receive only execution tasks, never business decisions. Every autonomous action records what it did, why it did it, which policy authorized it, the expected outcome, and the actual outcome.
 
 ## Department Roadmap
 
@@ -224,6 +224,57 @@ Every execution connector must have:
 - Retry support
 - Delegated-authority checks
 - Dry-run support
+
+## Workforce Runtime
+
+The AI Executive OS is modeled as an organization, not a collection of transient agents.
+
+Runtime package:
+
+```text
+src/workforce/
+  worker.py
+  workforce.py
+  queue.py
+  task.py
+  scheduler.py
+```
+
+Every worker has:
+
+- `worker_id`
+- `department`
+- `capabilities`
+- `current_task`
+- `status`
+- `last_execution`
+- `retry_count`
+- `execution_history`
+- `kpis`
+
+Worker states:
+
+- `IDLE`
+- `WORKING`
+- `WAITING_FOR_CONNECTOR`
+- `BLOCKED`
+- `FAILED`
+- `COMPLETED`
+
+Task lifecycle:
+
+```text
+Created -> Assigned -> Executing -> Completed -> Verified -> Archived
+```
+
+The persistent queue is stored under:
+
+```text
+memory/workforce/tasks.json
+memory/workforce/workers.json
+```
+
+It survives restarts, supports retries, priorities, deadlines, dependencies, and blocked-task ownership. Workers do not disappear after a task. If Buffer or Image generation is unavailable, the assigned worker keeps ownership and retries on the next execution window.
 
 Marketing Operations is the first department and includes:
 
@@ -266,6 +317,14 @@ Revenue Influence Score
 ```
 
 It traces completed AI actions to qualified leads, booked demos, and paying customers. If WhatsApp/customer attribution is not connected, the score is unavailable rather than guessed.
+
+The third operating KPI is:
+
+```text
+Business Autonomy Index
+```
+
+It reports Planning, Execution, Learning, Revenue Influence, and Overall autonomy. When Execution reaches 90%+, the system is crossing from smart software into autonomous operator.
 
 The 14-day acceptance criterion is: the AI Executive OS should come back with more content published, more experiments run, a better website, a complete audit trail, and more paying customers than when it started.
 
