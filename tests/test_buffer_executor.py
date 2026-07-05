@@ -128,6 +128,10 @@ class BufferExecutorTests(unittest.TestCase):
             variables["input"]["assets"],
             [{"image": {"url": "https://cdn.example.com/image.png"}}],
         )
+        self.assertEqual(
+            variables["input"]["metadata"],
+            {"instagram": {"type": "post", "shouldShareToFeed": True}},
+        )
 
     def test_image_required_post_blocks_without_media(self) -> None:
         transport = FakeBufferTransport({"data": {"createPost": {"post": {"id": "ignored"}}}})

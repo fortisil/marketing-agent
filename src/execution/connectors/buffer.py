@@ -290,6 +290,7 @@ class BufferExecutor:
         public_url = str(task.payload.get("public_url") or "")
         if public_url:
             input_payload["assets"] = [{"image": {"url": public_url}}]
+            input_payload["metadata"] = {"instagram": {"type": "post", "shouldShareToFeed": True}}
         return self._create_post_with_input(input_payload)
 
     def _create_validation_draft(self, text: str) -> dict[str, Any]:
