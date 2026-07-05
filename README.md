@@ -483,7 +483,27 @@ BUFFER_PROFILE_ID=
 EXECUTION_DRY_RUN=false
 IMAGE_GENERATION_ENABLED=true
 OPENAI_IMAGE_MODEL=gpt-image-1
+ASSET_PUBLIC_BASE_URL=
 ```
+
+Run the execution-only acceptance command:
+
+```bash
+python -m src.main --execute-marketing --require-business-artifact
+```
+
+This command does not send the CEO brief. It runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
+
+The GitHub Actions acceptance workflow is:
+
+```text
+.github/workflows/autonomous-marketing.yml
+```
+
+Configure the CMO environment before using it as a real publishing run:
+
+- Secrets: `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `OPENAI_API_KEY`
+- Variables: `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_PUBLIC_BASE_URL`
 
 Actual campaign creation requires a real Meta execution provider:
 

@@ -50,6 +50,12 @@ class GeneratedBrief:
     brief: str
 
 
+@dataclass(frozen=True)
+class MarketingExecution:
+    company_config: dict[str, Any]
+    decision_context: Any
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -77,14 +83,13 @@ def _email_payload(
     }
 
 
-def generate_daily_brief(settings: Settings) -> GeneratedBrief:
+def execute_marketing_workforce(settings: Settings) -> MarketingExecution:
     company_config = load_company_config(settings.company_config_path)
     objectives_config = load_objectives_config(settings.objectives_config_path)
     funnel_config = load_funnel_config(settings.funnel_config_path)
     ceo_constitution = load_ceo_constitution(settings.ceo_constitution_path)
     company_knowledge = load_company_knowledge(settings.knowledge_path)
     executive_knowledge = f"{ceo_constitution}\n\n---\n\n{company_knowledge}"
-    hebrew_style_guide = load_hebrew_style_guide(settings.hebrew_style_guide_path)
     logger.info("daily_generation_started")
 
     providers = [
@@ -135,6 +140,7 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
         openai_image_model=settings.openai_image_model,
         assets_root=settings.assets_root,
         asset_public_base_url=settings.asset_public_base_url,
+        memory_root=settings.memory_path,
         meta_execution_enabled=settings.meta_execution_enabled,
     ).run(decision_context)
     attach_marketing_department_output(decision_context, marketing_department_output)
@@ -142,11 +148,22 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
         "decision_context_created",
         extra={"_run_date": decision_context.run_date},
     )
+    return MarketingExecution(company_config=company_config, decision_context=decision_context)
 
-    brief = generate_brief(settings, company_config, decision_context, hebrew_style_guide)
+
+def generate_daily_brief(settings: Settings) -> GeneratedBrief:
+    hebrew_style_guide = load_hebrew_style_guide(settings.hebrew_style_guide_path)
+    execution = execute_marketing_workforce(settings)
+
+    brief = generate_brief(
+        settings,
+        execution.company_config,
+        execution.decision_context,
+        hebrew_style_guide,
+    )
     return GeneratedBrief(
-        company_config=company_config,
-        decision_context=decision_context,
+        company_config=execution.company_config,
+        decision_context=execution.decision_context,
         brief=brief,
     )
 
@@ -181,6 +198,50 @@ def generate_brief_files(settings: Settings) -> OutputResult:
     print(f"Report saved: {result.paths['report']}")
     logger.info("brief_files_generated", extra={"_brief_path": str(result.paths["brief"])})
     return result
+
+
+def execute_marketing(settings: Settings, *, require_business_artifact: bool = False) -> dict[str, Any]:
+    execution = execute_marketing_workforce(settings)
+    summary = execution.decision_context.summary
+    results = summary.get("marketing_department", {}).get("execution_results", [])
+    completed = [item for item in results if item.get("status") == "completed"]
+    blocked = [item for item in results if item.get("status") == "blocked"]
+    failed = [item for item in results if item.get("status") == "failed"]
+    output = FileOutputChannel(settings.memory_path, settings.timezone).deliver(
+        decision_context=execution.decision_context,
+        brief=_marketing_execution_markdown(summary),
+        sent=False,
+        dry_run=settings.execution_dry_run,
+        delivery=None,
+    )
+    payload = {
+        "status": "completed" if completed else "blocked" if blocked else "failed" if failed else "no_execution",
+        "business_artifact_created": bool(completed),
+        "run_date": execution.decision_context.run_date,
+        "completed": completed,
+        "blocked": blocked,
+        "failed": failed,
+        "paths": {key: str(value) for key, value in output.paths.items()},
+    }
+    print(json.dumps(payload, ensure_ascii=False))
+    if require_business_artifact and not completed:
+        raise SystemExit(2)
+    return payload
+
+
+def _marketing_execution_markdown(summary: dict[str, Any]) -> str:
+    autonomy = summary.get("business_autonomy_index", {})
+    completion = summary.get("autonomous_work_completion_rate", {})
+    return "\n".join(
+        [
+            "# Autonomous Marketing Execution",
+            "",
+            f"Business Autonomy Index: {autonomy.get('overall_percent', 'unavailable')}%",
+            f"Autonomous Work Completion Rate: {completion.get('success_rate_percent', 'unavailable')}%",
+            "",
+            "This file records the execution-only run. The structured report and execution log are the source of truth.",
+        ]
+    )
 
 
 def send_now(settings: Settings) -> OutputResult:
@@ -276,6 +337,16 @@ def parse_args() -> argparse.Namespace:
         help="Generate/save the brief and print a clean JSON email payload.",
     )
     parser.add_argument(
+        "--execute-marketing",
+        action="store_true",
+        help="Run autonomous marketing workforce, save logs, and print execution JSON without email.",
+    )
+    parser.add_argument(
+        "--require-business-artifact",
+        action="store_true",
+        help="With --execute-marketing, exit non-zero unless a verified business artifact was created.",
+    )
+    parser.add_argument(
         "--write-evening-journal",
         action="store_true",
         help="Write an evening Executive Journal from the latest daily report.",
@@ -289,7 +360,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     settings = load_settings()
-    configure_logging(settings.log_level)
+    configure_logging("ERROR" if args.execute_marketing else settings.log_level)
 
     if args.dry_run:
         dry_run(settings)
@@ -301,6 +372,10 @@ def main() -> None:
 
     if args.generate_email_body:
         generate_email_body(settings)
+        return
+
+    if args.execute_marketing:
+        execute_marketing(settings, require_business_artifact=args.require_business_artifact)
         return
 
     if args.write_evening_journal:

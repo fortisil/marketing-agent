@@ -137,8 +137,14 @@ class MarketingDepartment:
         image_workforce_result = self._run_workforce([image_task])
         image_result = self._result_for(image_workforce_result.execution_results, "ImageExecutor")
         buffer_task = self._buffer_task(content_output, image_result=image_result)
-        social_workforce_result = self._run_workforce([buffer_task])
-        execution_results = image_workforce_result.execution_results + social_workforce_result.execution_results
+        social_workforce_result = (
+            self._run_workforce([buffer_task])
+            if image_result is not None and image_result.status == "completed"
+            else None
+        )
+        execution_results = image_workforce_result.execution_results + (
+            social_workforce_result.execution_results if social_workforce_result else []
+        )
         buffer_result = self._result_for(execution_results, "BufferExecutor")
         design_output = self._design_output(
             brand_intelligence,
@@ -178,9 +184,20 @@ class MarketingDepartment:
             outputs=outputs,
             execution_results=execution_results,
             workforce={
-                "workers": [worker.to_dict() for worker in social_workforce_result.workers],
-                "tasks": [task.to_dict() for task in social_workforce_result.tasks],
-                "escalations": image_workforce_result.escalations + social_workforce_result.escalations,
+                "workers": [
+                    worker.to_dict()
+                    for worker in (
+                        social_workforce_result.workers if social_workforce_result else image_workforce_result.workers
+                    )
+                ],
+                "tasks": [
+                    task.to_dict()
+                    for task in (
+                        social_workforce_result.tasks if social_workforce_result else image_workforce_result.tasks
+                    )
+                ],
+                "escalations": image_workforce_result.escalations
+                + (social_workforce_result.escalations if social_workforce_result else []),
             },
             action_log=action_log,
         )

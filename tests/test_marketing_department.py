@@ -114,8 +114,8 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(actions["Social Agent"]["result"]["recorded_post_ids"], [])
         self.assertEqual(payload["execution_results"][0]["connector"], "ImageExecutor")
         self.assertEqual(payload["execution_results"][0]["status"], "blocked")
+        self.assertEqual(len(payload["workforce"]["tasks"]), 1)
         self.assertEqual(payload["workforce"]["tasks"][0]["status"], "Blocked")
-        self.assertEqual(payload["workforce"]["tasks"][1]["status"], "Created")
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()
