@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from hashlib import sha256
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -11,6 +13,7 @@ from src.execution.connectors import (
     ExecutionDispatcher,
     ExecutionResult,
     ExecutionTask,
+    ImageExecutor,
 )
 
 
@@ -81,7 +84,7 @@ class MarketingDepartment:
 
     department = "Marketing Operations"
     initiative = "Acquire the first three paying law firms"
-    mission = "Generate one qualified law firm demo today."
+    mission = "Generate one additional paying customer."
 
     def __init__(
         self,
@@ -93,6 +96,11 @@ class MarketingDepartment:
         buffer_access_token: str = "",
         buffer_profile_id: str = "",
         execution_dry_run: bool = True,
+        image_generation_enabled: bool = False,
+        openai_api_key: str = "",
+        openai_image_model: str = "gpt-image-1",
+        assets_root: Path | None = None,
+        asset_public_base_url: str = "",
         meta_execution_enabled: bool = False,
     ) -> None:
         self.company_config = company_config
@@ -102,6 +110,11 @@ class MarketingDepartment:
         self.buffer_access_token = buffer_access_token
         self.buffer_profile_id = buffer_profile_id
         self.execution_dry_run = execution_dry_run
+        self.image_generation_enabled = image_generation_enabled
+        self.openai_api_key = openai_api_key
+        self.openai_image_model = openai_image_model
+        self.assets_root = assets_root or Path("assets/companies/chatbot2u")
+        self.asset_public_base_url = asset_public_base_url.rstrip("/")
         self.meta_execution_enabled = meta_execution_enabled
 
     def run(self, decision_context: DecisionContext) -> MarketingDepartmentOutput:
@@ -116,10 +129,17 @@ class MarketingDepartment:
 
         agents = self._agents()
         content_output = self._content_output(cta)
-        social_output, execution_results = self._social_output(content_output)
+        design_output, image_results = self._design_output(
+            brand_intelligence,
+            content_output,
+            decision_context.run_date,
+        )
+        image_result = image_results[0] if image_results else None
+        social_output, social_results = self._social_output(content_output, image_result)
+        execution_results = image_results + social_results
         outputs = [
             content_output,
-            self._design_output(brand_intelligence),
+            design_output,
             self._video_output(cta),
             social_output,
             self._ads_output(meta_ads),
@@ -266,20 +286,85 @@ class MarketingDepartment:
             },
         )
 
-    def _design_output(self, brand_intelligence: dict[str, Any]) -> AgentOutput:
+    def _design_output(
+        self,
+        brand_intelligence: dict[str, Any],
+        content_output: AgentOutput,
+        run_date: str,
+    ) -> tuple[AgentOutput, list[ExecutionResult]]:
+        task = self._image_task(brand_intelligence, content_output, run_date)
+        result = ExecutionDispatcher(
+            [
+                ImageExecutor(
+                    api_key=self.openai_api_key,
+                    assets_root=self.assets_root,
+                    timezone=self.timezone,
+                    enabled=self.image_generation_enabled,
+                    dry_run=self.execution_dry_run,
+                    model=self.openai_image_model,
+                )
+            ]
+        ).dispatch([task])[0]
         return AgentOutput(
             agent="Design Agent",
-            status="prepared" if brand_intelligence else "prepared_with_brand_defaults",
+            status=result.status,
             daily_output={
                 "asset_specs": ["Instagram Reel cover", "Story frame", "thumbnail"],
                 "brand_source": "Brand Brain" if brand_intelligence else "configured brand defaults",
-                "image_prompt": (
-                    "Create a clean B2B SaaS visual for Israeli law firms: WhatsApp intake, legal desk, "
-                    "clear CTA, ChatBot2U brand colors, no stock-photo feel."
-                ),
+                "image_prompt": task.payload["prompt"],
+                "alt_text": task.payload["alt_text"],
                 "guardrail": "Do not publish creative that conflicts with the approved logo or brand colors.",
+                "executed": result.status == "completed",
+                "image_path": result.proof.get("image_path"),
+                "execution_result": result.to_dict(),
+            },
+            error=result.error,
+        ), [result]
+
+    def _image_task(
+        self,
+        brand_intelligence: dict[str, Any],
+        content_output: AgentOutput,
+        run_date: str,
+    ) -> ExecutionTask:
+        content = content_output.daily_output
+        brand_assets = self._brand_assets(brand_intelligence)
+        prompt = (
+            "ChatBot2U branded Instagram visual for Israeli law firms. "
+            f"Theme: {content.get('theme')}. "
+            "Show WhatsApp client intake becoming a structured qualified demo flow. "
+            "Use approved ChatBot2U colors, clean B2B SaaS composition, practical legal-office context, "
+            "clear WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
+        )
+        return ExecutionTask(
+            id=f"{self.department.lower().replace(' ', '-')}-image",
+            connector="ImageExecutor",
+            action="generate_branded_social_image",
+            initiative=self.initiative,
+            expected_business_impact="High",
+            delegated_authority_used="marketing.generate_images",
+            dry_run=self.execution_dry_run,
+            payload={
+                "run_date": run_date,
+                "prompt": prompt,
+                "size": "1024x1024",
+                "brand_assets": brand_assets,
+                "alt_text": "ChatBot2U turns WhatsApp inquiries for law firms into structured demo-ready conversations.",
             },
         )
+
+    def _brand_assets(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
+        colors = brand_intelligence.get("colors") or brand_intelligence.get("palette") or ["#1D4ED8", "#111827"]
+        logo = (
+            brand_intelligence.get("logo")
+            or brand_intelligence.get("logo_path")
+            or "knowledge/companies/chatbot2u/brand/logo/logo-light.svg"
+        )
+        return {
+            "colors": colors,
+            "logo": logo,
+            "source": "Brand Brain" if brand_intelligence else "configured brand defaults",
+        }
 
     def _video_output(self, cta: dict[str, Any]) -> AgentOutput:
         return AgentOutput(
@@ -302,8 +387,40 @@ class MarketingDepartment:
             },
         )
 
-    def _social_output(self, content_output: AgentOutput) -> tuple[AgentOutput, list[ExecutionResult]]:
-        task = self._buffer_task(content_output)
+    def _social_output(
+        self,
+        content_output: AgentOutput,
+        image_result: ExecutionResult | None,
+    ) -> tuple[AgentOutput, list[ExecutionResult]]:
+        task = self._buffer_task(content_output, image_result)
+        if image_result is None or image_result.status != "completed":
+            result = ExecutionResult.blocked(
+                task,
+                timezone=self.timezone,
+                error="Image proof is required before publishing Instagram content.",
+                next_retry="after ImageExecutor completes",
+                result={
+                    "required_connector": "ImageExecutor",
+                    "image_status": image_result.status if image_result else "missing",
+                    "image_error": image_result.error if image_result else None,
+                },
+            )
+            return AgentOutput(
+                agent="Social Agent",
+                status="blocked",
+                daily_output={
+                    "executed": False,
+                    "reason": "Image proof is required before publishing Instagram content.",
+                    "connector": "BufferExecutor",
+                    "recorded_urls": [],
+                    "recorded_post_ids": [],
+                    "image_path": None,
+                    "caption_hash": self._caption_hash(content_output),
+                    "execution_result": result.to_dict(),
+                },
+                error="waiting_for_image_executor",
+            ), [result]
+
         if not self.social_publishing_enabled:
             result = ExecutionResult.blocked(
                 task,
@@ -321,6 +438,8 @@ class MarketingDepartment:
                     "connector": "BufferExecutor",
                     "recorded_urls": [],
                     "recorded_post_ids": [],
+                    "image_path": image_result.proof.get("image_path"),
+                    "caption_hash": self._caption_hash(content_output),
                     "execution_result": result.to_dict(),
                 },
                 error="social_publishing_disabled",
@@ -349,13 +468,23 @@ class MarketingDepartment:
                     if result.artifact_ids.get("buffer_update_id")
                     else []
                 ),
+                "image_path": image_result.proof.get("image_path"),
+                "caption_hash": self._caption_hash(content_output),
                 "execution_result": result.to_dict(),
             },
             error=result.error,
         ), [result]
 
-    def _buffer_task(self, content_output: AgentOutput) -> ExecutionTask:
+    def _buffer_task(
+        self,
+        content_output: AgentOutput,
+        image_result: ExecutionResult | None,
+    ) -> ExecutionTask:
         content = content_output.daily_output
+        image_path = image_result.proof.get("image_path") if image_result else ""
+        media: dict[str, str] = {}
+        if image_path and self.asset_public_base_url:
+            media["photo"] = f"{self.asset_public_base_url}/{Path(image_path).name}"
         return ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-buffer-reel",
             connector="BufferExecutor",
@@ -375,8 +504,22 @@ class MarketingDepartment:
                 "publish_now": True,
                 "format": content.get("publish"),
                 "theme": content.get("theme"),
+                "media": media,
+                "image_path": image_path,
+                "caption_hash": self._caption_hash(content_output),
+                "require_media": True,
             },
         )
+
+    def _caption_hash(self, content_output: AgentOutput) -> str:
+        content = content_output.daily_output
+        caption = "\n\n".join(
+            [
+                str(content.get("hebrew_copy", "")).strip(),
+                str(content.get("cta", "")).strip(),
+            ]
+        ).strip()
+        return sha256(caption.encode("utf-8")).hexdigest()
 
     def _ads_output(self, meta_ads: dict[str, Any]) -> AgentOutput:
         verified_campaign = bool(meta_ads.get("verified") and meta_ads.get("campaign_status") == "active")
@@ -483,7 +626,7 @@ class MarketingDepartment:
     def _action_name(self, output: AgentOutput) -> str:
         actions = {
             "Content Agent": "Prepared today's law-firm Reel content plan",
-            "Design Agent": "Prepared brand-safe creative specifications",
+            "Design Agent": "Dispatched branded image generation task to ImageExecutor",
             "Video Agent": "Prepared HeyGen video script and storyboard",
             "Social Agent": "Dispatched Reel publishing task to BufferExecutor",
             "Ads Agent": "Checked paid promotion readiness",
@@ -509,6 +652,12 @@ class MarketingDepartment:
     def _next_step(self, output: AgentOutput) -> str:
         if output.agent == "Social Agent" and output.status == "blocked":
             return "Retry automatically after Buffer credentials are configured and dry-run is disabled."
+        if output.agent == "Design Agent" and output.status == "blocked":
+            return "Retry automatically after ImageExecutor is enabled and dry-run is disabled."
+        if output.agent == "Design Agent" and output.status == "failed":
+            return "Fix brand validation or image generation error before retry."
+        if output.agent == "Design Agent" and output.status == "completed":
+            return "Pass image proof to BufferExecutor."
         if output.agent == "Social Agent" and output.status == "failed":
             return "Retry Buffer publishing tomorrow 08:00 unless the error is non-retryable."
         if output.agent == "Social Agent" and output.status == "completed":
@@ -538,10 +687,10 @@ def attach_marketing_department_output(
         "frozen_executive_layer": True,
         "active_department": "Marketing Operations",
         "department_status": output.status,
-        "success_criterion": (
-            "Operate for 14 days with more content published, more experiments run, "
-            "a better website, a complete audit trail, and more qualified demos."
-        ),
+            "success_criterion": (
+                "Operate for 14 days with more content published, more experiments run, "
+                "a better website, a complete audit trail, and more paying customers."
+            ),
     }
     executed = [
         action["action"]
@@ -570,12 +719,15 @@ def attach_marketing_department_output(
     decision_context.summary["blocked_actions"] = blocked
     decision_context.summary["failed_actions"] = failed
     decision_context.summary["autonomous_work_completion_rate"] = autonomous_work_kpi
+    revenue_influence = _revenue_influence_score(decision_context, output.action_log)
+    decision_context.summary["revenue_influence_score"] = revenue_influence
     if isinstance(decision_context.summary.get("execution_reality"), dict):
         decision_context.summary["execution_reality"]["prepared_actions"] = []
         decision_context.summary["execution_reality"]["internal_memory_tasks"] = internal_memory
         decision_context.summary["execution_reality"][
             "autonomous_work_completion_rate"
         ] = autonomous_work_kpi
+        decision_context.summary["execution_reality"]["revenue_influence_score"] = revenue_influence
     decision_context.daily_report.autonomous_action_log.extend(output.action_log)
 
 
@@ -604,3 +756,60 @@ def _autonomous_work_completion_rate(action_log: list[dict[str, Any]]) -> dict[s
         ),
         "excludes": "Internal memory tasks and prepared payloads that have no execution proof.",
     }
+
+
+def _revenue_influence_score(
+    decision_context: DecisionContext,
+    action_log: list[dict[str, Any]],
+) -> dict[str, Any]:
+    whatsapp_bot = decision_context.summary.get("whatsapp_bot", {})
+    verified_funnel = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+    today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+    completed_actions = [
+        action for action in action_log if action.get("status") == "executed"
+    ]
+    qualified_leads = _safe_int(today.get("qualified_leads")) if verified_funnel else None
+    booked_demos = (
+        _safe_int(today.get("demo_bookings") or today.get("demos_booked"))
+        if verified_funnel
+        else None
+    )
+    customers = _safe_int(today.get("customers")) if verified_funnel else None
+    if not verified_funnel:
+        return {
+            "metric": "Revenue Influence Score",
+            "score": None,
+            "status": "unavailable",
+            "reason": "No verified funnel data connected.",
+            "traceability_required": ["post", "campaign", "reel", "website_change", "outreach"],
+            "qualified_leads": None,
+            "booked_demos": None,
+            "customers": None,
+            "influencing_actions": len(completed_actions),
+        }
+
+    score = min(
+        100,
+        (len(completed_actions) * 5)
+        + ((qualified_leads or 0) * 10)
+        + ((booked_demos or 0) * 25)
+        + ((customers or 0) * 50),
+    )
+    return {
+        "metric": "Revenue Influence Score",
+        "score": score,
+        "status": "verified",
+        "reason": "Calculated from verified funnel events and completed AI actions.",
+        "traceability_required": ["post", "campaign", "reel", "website_change", "outreach"],
+        "qualified_leads": qualified_leads,
+        "booked_demos": booked_demos,
+        "customers": customers,
+        "influencing_actions": len(completed_actions),
+    }
+
+
+def _safe_int(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

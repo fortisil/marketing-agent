@@ -5,7 +5,7 @@ goal:
   name: 10 paying law firms
   description: Validate repeatable demand and conversion before scaling spend.
 
-north_star_kpi: booked demos
+north_star_kpi: paying customers
 
 targets:
   demos_per_week: 3
@@ -24,12 +24,12 @@ quarterly_okrs:
 
 operating_principles:
   - We are no longer building features. We are building judgment.
-  - Every activity should help ChatBot2U book more qualified demos.
+  - Every activity should help ChatBot2U acquire one additional paying customer.
   - In Validation, learning quality matters more than ad scale.
   - Prefer customer conversations and fast iteration over polished campaigns.
   - The AI CMO should never wait for work; when no obvious task exists, proactively review website, repository, marketing, competitors, SEO, sales funnel, WhatsApp conversations, hypotheses, and experiments.
 
-mission_template: Generate one qualified demo booking.
+mission_template: Generate one additional paying customer.
 
 delegated_authority:
   marketing:

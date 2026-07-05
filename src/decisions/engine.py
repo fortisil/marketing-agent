@@ -140,7 +140,7 @@ class DecisionEngine:
         decisions.extend(whatsapp_decisions)
         risks.extend(whatsapp_risks)
 
-        mission = str(self.objectives_config.get("mission_template", "Generate one qualified demo booking."))
+        mission = str(self.objectives_config.get("mission_template", "Generate one additional paying customer."))
         recommendations = self._recommendations(
             run_date=run_date,
             company_state=company_state,
@@ -488,7 +488,7 @@ class DecisionEngine:
         recommended_titles = [recommendation.title for recommendation in recommendations]
         return {
             "initiative": "Acquire the first three paying law firms",
-            "today_mission": "Generate one qualified law firm demo today.",
+            "today_mission": "Generate one additional paying customer.",
             "estimated_business_impact": "High",
             "currently_working_on": current_work[:6],
             "internal_tasks": internal_tasks,
@@ -882,9 +882,9 @@ class DecisionEngine:
     ) -> list[Recommendation]:
         recommendations = [
             Recommendation(
-                title="Generate one qualified law firm demo today",
+                title="Generate one additional paying customer",
                 reason=(
-                    "The highest-impact business outcome is a qualified demo. With limited verified data, use direct execution: content, website CTA improvement, ICP research, and outreach preparation."
+                    "The highest-impact business outcome is a paying customer. Use demos as the conversion path, but optimize content, website CTA, ICP research, and outreach toward signed revenue."
                 ),
                 estimated_impact="High",
                 confidence=0.86,

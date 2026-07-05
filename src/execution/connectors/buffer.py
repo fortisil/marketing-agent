@@ -60,6 +60,17 @@ class BufferExecutor:
                 error="Buffer task payload is missing text.",
                 next_retry=None,
             )
+        media = task.payload.get("media")
+        if task.payload.get("require_media") and not (
+            isinstance(media, dict) and (media.get("photo") or media.get("video"))
+        ):
+            return ExecutionResult.blocked(
+                task,
+                timezone=self.timezone,
+                error="Buffer task requires media proof before publishing.",
+                next_retry="after ImageExecutor or VideoExecutor completes",
+                result={"required_media": True},
+            )
 
         if not self.access_token or not self.profile_id:
             return ExecutionResult.blocked(

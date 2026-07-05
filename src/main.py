@@ -130,6 +130,11 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
         buffer_access_token=settings.buffer_access_token,
         buffer_profile_id=settings.buffer_profile_id,
         execution_dry_run=settings.execution_dry_run,
+        image_generation_enabled=settings.image_generation_enabled,
+        openai_api_key=settings.openai_api_key,
+        openai_image_model=settings.openai_image_model,
+        assets_root=settings.assets_root,
+        asset_public_base_url=settings.asset_public_base_url,
         meta_execution_enabled=settings.meta_execution_enabled,
     ).run(decision_context)
     attach_marketing_department_output(decision_context, marketing_department_output)

@@ -81,6 +81,29 @@ class BufferExecutorTests(unittest.TestCase):
         self.assertEqual(result.proof["url"], "https://buffer.com/app/posts/update_123")
         self.assertEqual(len(transport.calls), 1)
 
+    def test_image_required_post_blocks_without_media(self) -> None:
+        transport = FakeBufferTransport({"updates": [{"id": "ignored"}]})
+        task = ExecutionTask(
+            id="buffer-test",
+            connector="BufferExecutor",
+            action="publish_social_post",
+            payload={"text": "Test post", "publish_now": True, "require_media": True},
+            delegated_authority_used="marketing.publish_posts",
+            initiative="Acquire first paying law firms",
+            expected_business_impact="High",
+        )
+        result = BufferExecutor(
+            access_token="token",
+            profile_id="profile",
+            timezone="Asia/Jerusalem",
+            dry_run=False,
+            transport=transport,
+        ).execute(task)
+
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.error, "Buffer task requires media proof before publishing.")
+        self.assertEqual(transport.calls, [])
+
 
 if __name__ == "__main__":
     unittest.main()

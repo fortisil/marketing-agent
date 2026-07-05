@@ -48,6 +48,9 @@ class Settings:
     buffer_access_token: str
     buffer_profile_id: str
     execution_dry_run: bool
+    image_generation_enabled: bool
+    openai_image_model: str
+    asset_public_base_url: str
     meta_execution_enabled: bool
 
 
@@ -104,6 +107,9 @@ def load_settings() -> Settings:
         buffer_access_token=os.getenv("BUFFER_ACCESS_TOKEN", ""),
         buffer_profile_id=os.getenv("BUFFER_PROFILE_ID", ""),
         execution_dry_run=os.getenv("EXECUTION_DRY_RUN", "true").lower() == "true",
+        image_generation_enabled=os.getenv("IMAGE_GENERATION_ENABLED", "false").lower() == "true",
+        openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1"),
+        asset_public_base_url=os.getenv("ASSET_PUBLIC_BASE_URL", ""),
         meta_execution_enabled=os.getenv("META_EXECUTION_ENABLED", "false").lower() == "true",
     )
 

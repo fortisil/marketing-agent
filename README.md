@@ -2,7 +2,7 @@
 
 AI Executive Operating System foundation for ChatBot2U. The AI CMO is the first executive.
 
-This version generates a structured daily executive report, renders an English CEO brief from it, sends it through Resend, and stores memory for learning. The first production KPI is booked demos; the ultimate KPI is paying customers.
+This version generates a structured daily executive report, renders an English CEO brief from it, sends it through Resend, and stores memory for learning. The north-star KPI is paying customers; booked demos remain an important conversion signal.
 
 ## What It Does
 
@@ -259,7 +259,15 @@ The brief should show:
 
 The target is 95%. Internal memory tasks and prepared payloads do not count as completed autonomous work unless a connector returns execution proof.
 
-The 14-day acceptance criterion is: the AI Executive OS should come back with more content published, more experiments run, a better website, a complete audit trail, and more qualified demos than when it started.
+The second operating KPI is:
+
+```text
+Revenue Influence Score
+```
+
+It traces completed AI actions to qualified leads, booked demos, and paying customers. If WhatsApp/customer attribution is not connected, the score is unavailable rather than guessed.
+
+The 14-day acceptance criterion is: the AI Executive OS should come back with more content published, more experiments run, a better website, a complete audit trail, and more paying customers than when it started.
 
 Department actions are written to:
 
@@ -398,6 +406,7 @@ Marketing Operations can create internal task payloads without external credenti
 Sprint 1 execution connector:
 
 - `BufferExecutor`: accepts a social publishing task, calls Buffer, requires a Buffer update ID, records the URL when available, and logs completion/failure.
+- `ImageExecutor`: accepts a branded image task, validates Brand Brain inputs, generates a PNG when enabled, stores it under `assets/companies/chatbot2u/social/YYYY-MM-DD/`, records the image path and SHA-256, and blocks Buffer publishing until image proof exists.
 
 Actual publishing requires:
 
@@ -406,6 +415,8 @@ SOCIAL_PUBLISHING_ENABLED=true
 BUFFER_ACCESS_TOKEN=
 BUFFER_PROFILE_ID=
 EXECUTION_DRY_RUN=false
+IMAGE_GENERATION_ENABLED=true
+OPENAI_IMAGE_MODEL=gpt-image-1
 ```
 
 Actual campaign creation requires a real Meta execution provider:

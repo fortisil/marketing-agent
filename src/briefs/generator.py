@@ -37,13 +37,14 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, and `marketing_department` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, and `marketing_department` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
 - Put `Autonomous Work Completion Rate` immediately after the trust banner. Show planned tasks, completed automatically, blocked, failed, and success rate.
+- Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
 - Internal tasks belong to the AI CMO execution queue. Mention only the small number that affects today's initiative or requires escalation.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.
 - The active department is Marketing Operations. The CEO brief must answer: "What did I accomplish for ChatBot2U while you were away?"
@@ -63,13 +64,14 @@ Hard rules:
 Keep the CEO brief to one page. Include only:
 1. Data confidence trust banner.
 2. Autonomous Work Completion Rate.
-3. Executive Summary.
-4. What changed.
-5. Today's initiative.
-6. Completed execution.
-7. Blocked or failed execution, with next automatic retry.
-8. Decisions requiring escalation, if any.
-9. Missing verified data only when it affects today's decision.
+3. Revenue Influence Score.
+4. Executive Summary.
+5. What changed.
+6. Today's initiative.
+7. Completed execution.
+8. Blocked or failed execution, with next automatic retry.
+9. Decisions requiring escalation, if any.
+10. Missing verified data only when it affects today's decision.
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
 

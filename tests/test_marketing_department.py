@@ -104,13 +104,16 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(agents[0], "Content Agent")
         self.assertIn("Outreach Agent", agents)
         self.assertEqual(actions["Content Agent"]["status"], "internal_memory")
+        self.assertEqual(actions["Design Agent"]["status"], "blocked")
         self.assertEqual(actions["Social Agent"]["status"], "blocked")
         self.assertEqual(actions["Ads Agent"]["status"], "blocked")
         self.assertFalse(actions["Social Agent"]["result"]["executed"])
         self.assertFalse(actions["Ads Agent"]["result"]["executed"])
         self.assertEqual(actions["Social Agent"]["result"]["recorded_post_ids"], [])
-        self.assertEqual(payload["execution_results"][0]["connector"], "BufferExecutor")
+        self.assertEqual(payload["execution_results"][0]["connector"], "ImageExecutor")
         self.assertEqual(payload["execution_results"][0]["status"], "blocked")
+        self.assertEqual(payload["execution_results"][1]["connector"], "BufferExecutor")
+        self.assertEqual(payload["execution_results"][1]["result"]["required_connector"], "ImageExecutor")
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()
@@ -129,15 +132,20 @@ class MarketingDepartmentTests(unittest.TestCase):
         )
         self.assertEqual(context.summary["prepared_actions"], [])
         self.assertIn("Prepared today's law-firm Reel content plan", context.summary["internal_memory_tasks"])
+        self.assertIn("Dispatched branded image generation task to ImageExecutor", context.summary["blocked_actions"])
         self.assertIn("Dispatched Reel publishing task to BufferExecutor", context.summary["blocked_actions"])
         self.assertIn("connector_execution", context.summary)
         completion = context.summary["autonomous_work_completion_rate"]
         self.assertEqual(completion["metric"], "Autonomous Work Completion Rate")
-        self.assertEqual(completion["planned_tasks"], 3)
+        self.assertEqual(completion["planned_tasks"], 4)
         self.assertEqual(completion["completed_automatically"], 0)
-        self.assertEqual(completion["blocked"], 3)
+        self.assertEqual(completion["blocked"], 4)
         self.assertEqual(completion["success_rate_percent"], 0)
         self.assertEqual(completion["target_success_rate_percent"], 95)
+        influence = context.summary["revenue_influence_score"]
+        self.assertEqual(influence["metric"], "Revenue Influence Score")
+        self.assertEqual(influence["status"], "unavailable")
+        self.assertIn("post", influence["traceability_required"])
 
     def test_file_output_writes_daily_action_memory(self) -> None:
         context = _context()
@@ -162,8 +170,9 @@ class MarketingDepartmentTests(unittest.TestCase):
 
         self.assertTrue(actions_path.name.endswith(".json"))
         self.assertEqual(len(actions), 8)
-        self.assertEqual(len(executions), 1)
-        self.assertEqual(executions[0]["connector"], "BufferExecutor")
+        self.assertEqual(len(executions), 2)
+        self.assertEqual(executions[0]["connector"], "ImageExecutor")
+        self.assertEqual(executions[1]["connector"], "BufferExecutor")
         self.assertEqual(actions[0]["initiative"], "Acquire the first three paying law firms")
         self.assertIn("delegated_authority_used", actions[0])
 
@@ -182,9 +191,9 @@ class MarketingDepartmentTests(unittest.TestCase):
 
         completion = context.summary["autonomous_work_completion_rate"]
 
-        self.assertEqual(completion["planned_tasks"], 3)
+        self.assertEqual(completion["planned_tasks"], 4)
         self.assertEqual(completion["completed_automatically"], 0)
-        self.assertEqual(completion["blocked"], 3)
+        self.assertEqual(completion["blocked"], 4)
         self.assertEqual(completion["success_rate"], 0)
 
 

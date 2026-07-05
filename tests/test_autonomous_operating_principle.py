@@ -174,11 +174,11 @@ class AutonomousOperatingPrincipleTests(unittest.TestCase):
         queue = summary["execution_queue"]
 
         self.assertEqual(queue["initiative"], "Acquire the first three paying law firms")
-        self.assertEqual(queue["today_mission"], "Generate one qualified law firm demo today.")
+        self.assertEqual(queue["today_mission"], "Generate one additional paying customer.")
         self.assertIn("currently_working_on", queue)
         self.assertIn("internal_tasks", queue)
         self.assertIn(
-            "Generate one qualified law firm demo today",
+            "Generate one additional paying customer",
             summary["recommended_actions"],
         )
         self.assertTrue(

@@ -112,7 +112,7 @@ class WebsiteRepoProvider:
                 "Confirm every primary landing page has a WhatsApp CTA above the fold.",
             ],
             "marketing_opportunities": [
-                "Connect website claims to the mission: generate one qualified demo booking.",
+                "Connect website claims to the mission: generate one additional paying customer.",
             ],
             "content_ideas": [
                 "Publish a founder-led demo showing a law-firm lead moving from WhatsApp to booked appointment.",
@@ -312,7 +312,7 @@ class WebsiteRepoProvider:
 
     def _marketing_opportunities(self, samples: list[str], ctas: list[str]) -> list[str]:
         opportunities = [
-            "Align the website hero CTA with the daily mission: generate one qualified demo booking.",
+            "Align the website hero CTA with the daily mission: generate one additional paying customer.",
         ]
         joined = " ".join(samples).lower()
         if "law" not in joined and "עורכ" not in joined:
