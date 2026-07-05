@@ -4,6 +4,8 @@ AI Executive Operating System foundation for ChatBot2U. The AI CMO is the first 
 
 This version generates a structured daily executive report, renders an English CEO brief from it, sends it through Resend, and stores memory for learning. The north-star KPI is paying customers; booked demos remain an important conversion signal.
 
+The permanent definition of done is [`AUTONOMOUS_CMO_ACCEPTANCE.md`](/Users/rami/Documents/Codex/2026-07-03/chrome-plugin-chrome-openai-bundled-file-2/AUTONOMOUS_CMO_ACCEPTANCE.md). The architecture is frozen; future sprints should close the gap between autonomous marketing execution and autonomous business growth.
+
 ## What It Does
 
 - Loads company rules from `config/companies/chatbot2u.yaml`
@@ -400,6 +402,7 @@ This repository is now the foundation of an AI Executive Operating System. ChatB
 Core executive layers:
 
 - CEO Constitution: `knowledge/ceo_constitution.md`
+- Autonomous CMO Acceptance Specification: `AUTONOMOUS_CMO_ACCEPTANCE.md`
 - Executive Brain: prioritizes mission, OKRs, initiatives, and tradeoffs
 - Board of Advisors: Growth, Product, Finance, and Customer Success perspectives
 - Chief of Staff: selects what runs today, what waits, and what exceeds delegated authority
