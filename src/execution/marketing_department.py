@@ -778,11 +778,11 @@ class MarketingDepartment:
     def _action_name(self, output: AgentOutput) -> str:
         actions = {
             "Content Agent": "Prepared today's law-firm Reel content plan",
-            "Design Agent": "Dispatched branded image generation task to ImageExecutor",
+            "Design Agent": "Blocked branded image generation",
             "Video Agent": "Prepared HeyGen video script and storyboard",
-            "Social Agent": "Dispatched Reel publishing task to BufferExecutor",
-            "Ads Agent": "Checked paid promotion readiness",
-            "Analytics Agent": "Checked verified marketing outcome data",
+            "Social Agent": "Blocked Instagram publishing",
+            "Ads Agent": "Blocked paid promotion",
+            "Analytics Agent": "Blocked verified marketing outcome analysis",
             "Website Agent": "Prepared homepage CTA improvement spec",
             "Outreach Agent": "Prepared ICP outreach draft",
         }

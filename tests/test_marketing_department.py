@@ -181,8 +181,8 @@ class MarketingDepartmentTests(unittest.TestCase):
         )
         self.assertEqual(context.summary["prepared_actions"], [])
         self.assertIn("Prepared today's law-firm Reel content plan", context.summary["internal_memory_tasks"])
-        self.assertIn("Dispatched branded image generation task to ImageExecutor", context.summary["blocked_actions"])
-        self.assertIn("Dispatched Reel publishing task to BufferExecutor", context.summary["blocked_actions"])
+        self.assertIn("Blocked branded image generation", context.summary["blocked_actions"])
+        self.assertIn("Blocked Instagram publishing", context.summary["blocked_actions"])
         self.assertIn("connector_execution", context.summary)
         completion = context.summary["autonomous_work_completion_rate"]
         self.assertEqual(completion["metric"], "Autonomous Work Completion Rate")
