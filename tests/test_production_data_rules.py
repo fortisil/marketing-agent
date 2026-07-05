@@ -182,8 +182,11 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("Keep the CEO brief to one page.", prompt)
         self.assertIn("execution_queue", prompt)
         self.assertIn("marketing_department", prompt)
+        self.assertIn("connector_execution", prompt)
         self.assertIn("What did I accomplish for ChatBot2U while you were away?", prompt)
         self.assertIn("Do not claim content was published", prompt)
+        self.assertIn("Do not tell the CEO that something is \"ready\"", prompt)
+        self.assertIn("Only report: Completed, Blocked, Failed", prompt)
         self.assertIn("Do not include long internal task lists", prompt)
         self.assertNotIn("כתוב בריף", prompt)
 

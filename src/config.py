@@ -47,6 +47,7 @@ class Settings:
     social_publishing_enabled: bool
     buffer_access_token: str
     buffer_profile_id: str
+    execution_dry_run: bool
     meta_execution_enabled: bool
 
 
@@ -102,6 +103,7 @@ def load_settings() -> Settings:
         social_publishing_enabled=os.getenv("SOCIAL_PUBLISHING_ENABLED", "false").lower() == "true",
         buffer_access_token=os.getenv("BUFFER_ACCESS_TOKEN", ""),
         buffer_profile_id=os.getenv("BUFFER_PROFILE_ID", ""),
+        execution_dry_run=os.getenv("EXECUTION_DRY_RUN", "true").lower() == "true",
         meta_execution_enabled=os.getenv("META_EXECUTION_ENABLED", "false").lower() == "true",
     )
 

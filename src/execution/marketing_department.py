@@ -6,6 +6,12 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from src.decisions.engine import DecisionContext
+from src.execution.connectors import (
+    BufferExecutor,
+    ExecutionDispatcher,
+    ExecutionResult,
+    ExecutionTask,
+)
 
 
 @dataclass(frozen=True)
@@ -54,6 +60,7 @@ class MarketingDepartmentOutput:
     status: str
     agents: list[AgentSpec]
     outputs: list[AgentOutput]
+    execution_results: list[ExecutionResult] = field(default_factory=list)
     action_log: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -64,6 +71,7 @@ class MarketingDepartmentOutput:
             "status": self.status,
             "agents": [agent.to_dict() for agent in self.agents],
             "outputs": [output.to_dict() for output in self.outputs],
+            "execution_results": [result.to_dict() for result in self.execution_results],
             "action_log": self.action_log,
         }
 
@@ -82,14 +90,18 @@ class MarketingDepartment:
         objectives_config: dict[str, Any],
         timezone: str,
         social_publishing_enabled: bool = False,
-        buffer_configured: bool = False,
+        buffer_access_token: str = "",
+        buffer_profile_id: str = "",
+        execution_dry_run: bool = True,
         meta_execution_enabled: bool = False,
     ) -> None:
         self.company_config = company_config
         self.objectives_config = objectives_config
         self.timezone = timezone
         self.social_publishing_enabled = social_publishing_enabled
-        self.buffer_configured = buffer_configured
+        self.buffer_access_token = buffer_access_token
+        self.buffer_profile_id = buffer_profile_id
+        self.execution_dry_run = execution_dry_run
         self.meta_execution_enabled = meta_execution_enabled
 
     def run(self, decision_context: DecisionContext) -> MarketingDepartmentOutput:
@@ -103,11 +115,13 @@ class MarketingDepartment:
         brand_intelligence = summary.get("brand_intelligence", {})
 
         agents = self._agents()
+        content_output = self._content_output(cta)
+        social_output, execution_results = self._social_output(content_output)
         outputs = [
-            self._content_output(cta),
+            content_output,
             self._design_output(brand_intelligence),
             self._video_output(cta),
-            self._social_output(),
+            social_output,
             self._ads_output(meta_ads),
             self._analytics_output(whatsapp_bot, meta_ads),
             self._website_output(website_intelligence, cta),
@@ -119,7 +133,11 @@ class MarketingDepartment:
         ]
         status = (
             "operating_with_external_execution"
-            if self.social_publishing_enabled and self.buffer_configured and self.meta_execution_enabled
+            if self.social_publishing_enabled
+            and self.buffer_access_token
+            and self.buffer_profile_id
+            and not self.execution_dry_run
+            and self.meta_execution_enabled
             else "operating_in_preparation_mode"
         )
         return MarketingDepartmentOutput(
@@ -129,6 +147,7 @@ class MarketingDepartment:
             status=status,
             agents=agents,
             outputs=outputs,
+            execution_results=execution_results,
             action_log=action_log,
         )
 
@@ -283,57 +302,97 @@ class MarketingDepartment:
             },
         )
 
-    def _social_output(self) -> AgentOutput:
-        if not self.social_publishing_enabled or not self.buffer_configured:
+    def _social_output(self, content_output: AgentOutput) -> tuple[AgentOutput, list[ExecutionResult]]:
+        task = self._buffer_task(content_output)
+        if not self.social_publishing_enabled:
+            result = ExecutionResult.blocked(
+                task,
+                timezone=self.timezone,
+                error="Social publishing is disabled for this runtime.",
+                next_retry="enable SOCIAL_PUBLISHING_ENABLED with Buffer credentials",
+                result={"connector": "BufferExecutor"},
+            )
             return AgentOutput(
                 agent="Social Agent",
                 status="blocked",
                 daily_output={
                     "executed": False,
-                    "reason": "Buffer publishing executor is not configured in this runtime.",
-                    "required_provider": "Buffer",
+                    "reason": "Social publishing is disabled for this runtime.",
+                    "connector": "BufferExecutor",
                     "recorded_urls": [],
                     "recorded_post_ids": [],
+                    "execution_result": result.to_dict(),
                 },
-                error="waiting_for_buffer_execution_provider",
-            )
+                error="social_publishing_disabled",
+            ), [result]
+
+        result = ExecutionDispatcher(
+            [
+                BufferExecutor(
+                    access_token=self.buffer_access_token,
+                    profile_id=self.buffer_profile_id,
+                    timezone=self.timezone,
+                    dry_run=self.execution_dry_run,
+                )
+            ]
+        ).dispatch([task])[0]
+
         return AgentOutput(
             agent="Social Agent",
-            status="prepared_for_external_executor",
+            status=result.status,
             daily_output={
-                "executed": False,
-                "reason": "Publishing payload is ready; Buffer API execution is not implemented in this repository yet.",
-                "required_provider": "Buffer",
-                "recorded_urls": [],
-                "recorded_post_ids": [],
+                "executed": result.status == "completed",
+                "connector": "BufferExecutor",
+                "recorded_urls": [result.proof["url"]] if result.proof.get("url") else [],
+                "recorded_post_ids": (
+                    [result.artifact_ids["buffer_update_id"]]
+                    if result.artifact_ids.get("buffer_update_id")
+                    else []
+                ),
+                "execution_result": result.to_dict(),
+            },
+            error=result.error,
+        ), [result]
+
+    def _buffer_task(self, content_output: AgentOutput) -> ExecutionTask:
+        content = content_output.daily_output
+        return ExecutionTask(
+            id=f"{self.department.lower().replace(' ', '-')}-buffer-reel",
+            connector="BufferExecutor",
+            action="publish_social_post",
+            initiative=self.initiative,
+            expected_business_impact="High",
+            delegated_authority_used="marketing.publish_posts / marketing.publish_reels",
+            dry_run=self.execution_dry_run,
+            payload={
+                "timezone": self.timezone,
+                "text": "\n\n".join(
+                    [
+                        str(content.get("hebrew_copy", "")).strip(),
+                        str(content.get("cta", "")).strip(),
+                    ]
+                ).strip(),
+                "publish_now": True,
+                "format": content.get("publish"),
+                "theme": content.get("theme"),
             },
         )
 
     def _ads_output(self, meta_ads: dict[str, Any]) -> AgentOutput:
         verified_campaign = bool(meta_ads.get("verified") and meta_ads.get("campaign_status") == "active")
-        if not self.meta_execution_enabled:
-            return AgentOutput(
-                agent="Ads Agent",
-                status="blocked",
-                daily_output={
-                    "campaign_status": meta_ads.get("campaign_status", "unknown"),
-                    "executed": False,
-                    "reason": "Meta execution provider is not configured.",
-                    "budget_rule": "Do not exceed ILS 20/day. No Saturday spend. Friday morning only.",
-                    "verified_active_campaign": verified_campaign,
-                },
-                error="waiting_for_meta_execution_provider",
-            )
         return AgentOutput(
             agent="Ads Agent",
-            status="prepared_for_external_executor",
+            status="blocked",
             daily_output={
                 "campaign_status": meta_ads.get("campaign_status", "unknown"),
                 "executed": False,
-                "reason": "Campaign payload requires real Meta execution provider before it can be marked active.",
+                "reason": (
+                    "MetaExecutor is not implemented/configured. A campaign cannot be created or reported active."
+                ),
                 "budget_rule": "Do not exceed ILS 20/day. No Saturday spend. Friday morning only.",
                 "verified_active_campaign": verified_campaign,
             },
+            error="waiting_for_meta_executor",
         )
 
     def _analytics_output(self, whatsapp_bot: dict[str, Any], meta_ads: dict[str, Any]) -> AgentOutput:
@@ -397,10 +456,11 @@ class MarketingDepartment:
     def _action_record(self, now: datetime, run_date: str, output: AgentOutput) -> dict[str, Any]:
         status_map = {
             "collected": "executed",
-            "prepared": "prepared",
-            "prepared_with_brand_defaults": "prepared",
-            "prepared_for_external_executor": "prepared",
+            "completed": "executed",
+            "prepared": "internal_memory",
+            "prepared_with_brand_defaults": "internal_memory",
             "blocked": "blocked",
+            "failed": "failed",
         }
         return {
             "timestamp": now.isoformat(),
@@ -425,7 +485,7 @@ class MarketingDepartment:
             "Content Agent": "Prepared today's law-firm Reel content plan",
             "Design Agent": "Prepared brand-safe creative specifications",
             "Video Agent": "Prepared HeyGen video script and storyboard",
-            "Social Agent": "Checked social publishing readiness",
+            "Social Agent": "Dispatched Reel publishing task to BufferExecutor",
             "Ads Agent": "Checked paid promotion readiness",
             "Analytics Agent": "Checked verified marketing outcome data",
             "Website Agent": "Prepared homepage CTA improvement spec",
@@ -448,7 +508,11 @@ class MarketingDepartment:
 
     def _next_step(self, output: AgentOutput) -> str:
         if output.agent == "Social Agent" and output.status == "blocked":
-            return "Configure Buffer executor before marking any post as published."
+            return "Retry automatically after Buffer credentials are configured and dry-run is disabled."
+        if output.agent == "Social Agent" and output.status == "failed":
+            return "Retry Buffer publishing tomorrow 08:00 unless the error is non-retryable."
+        if output.agent == "Social Agent" and output.status == "completed":
+            return "Record Buffer URL/post ID and measure WhatsApp demo intent."
         if output.agent == "Ads Agent" and output.status == "blocked":
             return "Configure real Meta execution provider before creating campaigns."
         if output.agent == "Analytics Agent" and output.status == "blocked":
@@ -462,6 +526,14 @@ def attach_marketing_department_output(
 ) -> None:
     payload = output.to_dict()
     decision_context.summary["marketing_department"] = payload
+    decision_context.summary["connector_execution"] = {
+        "results": [result.to_dict() for result in output.execution_results],
+        "proof_required": {
+            "published_reel": ["url", "buffer_update_id", "timestamp"],
+            "started_campaign": ["campaign_id", "budget", "status"],
+            "generated_video": ["mp4_path", "storage_location", "execution_log"],
+        },
+    }
     decision_context.summary["execution_departments"] = {
         "frozen_executive_layer": True,
         "active_department": "Marketing Operations",
@@ -476,17 +548,27 @@ def attach_marketing_department_output(
         for action in output.action_log
         if action.get("status") == "executed"
     ]
-    prepared = [
+    internal_memory = [
         action["action"]
         for action in output.action_log
-        if action.get("status") == "prepared"
+        if action.get("status") == "internal_memory"
     ]
     blocked = [
         action["action"]
         for action in output.action_log
         if action.get("status") == "blocked"
     ]
+    failed = [
+        action["action"]
+        for action in output.action_log
+        if action.get("status") == "failed"
+    ]
     decision_context.summary["executed_actions_today"] = executed or ["none"]
-    decision_context.summary["prepared_actions"] = prepared
+    decision_context.summary["prepared_actions"] = []
+    decision_context.summary["internal_memory_tasks"] = internal_memory
     decision_context.summary["blocked_actions"] = blocked
+    decision_context.summary["failed_actions"] = failed
+    if isinstance(decision_context.summary.get("execution_reality"), dict):
+        decision_context.summary["execution_reality"]["prepared_actions"] = []
+        decision_context.summary["execution_reality"]["internal_memory_tasks"] = internal_memory
     decision_context.daily_report.autonomous_action_log.extend(output.action_log)

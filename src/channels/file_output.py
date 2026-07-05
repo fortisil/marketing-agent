@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from src.channels.base import OutputResult
 from src.decisions.engine import DecisionContext
 from src.execution.action_log import ActionLogWriter
+from src.execution.connectors.log import ExecutionLogWriter
 
 
 class FileOutputChannel:
@@ -39,6 +40,7 @@ class FileOutputChannel:
         decision_path = self.decisions_dir / f"{run_date}.json"
         run_path = self.runs_dir / f"{run_id}.json"
         actions_path = self.root / "actions" / f"{run_date}.json"
+        executions_path = self.root / "executions" / f"{run_date}.json"
 
         brief_path.write_text(brief + "\n", encoding="utf-8")
         report = decision_context.daily_report.to_dict()
@@ -52,6 +54,16 @@ class FileOutputChannel:
         )
         if isinstance(department_actions, list) and department_actions:
             actions_path = ActionLogWriter(self.root, self.timezone).append(run_date, department_actions)
+        execution_results = (
+            report.get("metrics", {})
+            .get("marketing_department", {})
+            .get("execution_results", [])
+        )
+        if isinstance(execution_results, list) and execution_results:
+            executions_path = ExecutionLogWriter(self.root, self.timezone).append(
+                run_date,
+                execution_results,
+            )
         decision_path.write_text(
             json.dumps(decision_context.to_prompt_payload(), ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
@@ -80,6 +92,7 @@ class FileOutputChannel:
                 "decision": decision_path,
                 "run": run_path,
                 "actions": actions_path,
+                "executions": executions_path,
             },
             message=f"Saved brief to {brief_path}",
         )

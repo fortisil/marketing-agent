@@ -412,7 +412,7 @@ class DecisionEngine:
         current_work = [
             {
                 "task": str(item.get("task")),
-                "status": "ready_to_execute",
+                "status": "pending_connector_dispatch",
                 "source": "delegated_authority",
                 "expected_business_impact": item.get("expected_business_impact"),
             }
@@ -451,27 +451,27 @@ class DecisionEngine:
             },
             {
                 "task": "Review homepage CTA and above-the-fold WhatsApp path",
-                "status": "ready_to_execute",
+                "status": "pending_connector_dispatch",
                 "ceo_visible": False,
             },
             {
-                "task": "Prepare founder-led Reel / Story sequence",
-                "status": "ready_to_execute",
+                "task": "Build founder-led Reel / Story execution payload",
+                "status": "pending_connector_dispatch",
                 "ceo_visible": False,
             },
             {
                 "task": "Research 10 Israeli law firms matching the ICP",
-                "status": "ready_to_execute",
+                "status": "pending_connector_dispatch",
                 "ceo_visible": False,
             },
             {
                 "task": "Draft outreach messages for qualified law firms",
-                "status": "ready_to_execute",
+                "status": "pending_connector_dispatch",
                 "ceo_visible": False,
             },
             {
                 "task": "Review latest website and repository changes",
-                "status": "ready_to_execute",
+                "status": "pending_connector_dispatch",
                 "ceo_visible": False,
             },
         ]
@@ -480,7 +480,7 @@ class DecisionEngine:
             internal_tasks.append(
                 {
                     "task": "Patch weak website CTA toward WhatsApp demo booking",
-                    "status": "ready_to_execute",
+                    "status": "pending_connector_dispatch",
                     "ceo_visible": False,
                 }
             )
@@ -1105,7 +1105,7 @@ class DecisionEngine:
                     ),
                     initiative="Build learning loop for repeatable growth",
                     authority_policy="marketing.create_post_drafts",
-                    expected_outcome="One new qualified growth hypothesis or experiment ready to execute.",
+                    expected_outcome="One new qualified growth hypothesis or experiment defined for connector dispatch.",
                 )
             ]
 

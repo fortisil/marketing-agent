@@ -213,16 +213,17 @@ The ExecutiveBrain defines priorities. The Chief of Staff assigns work. Departme
 
 The Executive Layer is frozen except for bug fixes. New capabilities should be implemented as autonomous execution departments, not as more executive-brain logic.
 
-Every department agent must have:
+Every execution connector must have:
 
-- Mission
-- KPIs
-- Delegated authority
-- Memory
+- One responsibility
+- Task input
+- Success/failure result
 - Execution log
-- Daily output
-- Retry mechanism
-- Error handling
+- Artifact IDs
+- Proof fields
+- Retry support
+- Delegated-authority checks
+- Dry-run support
 
 Marketing Operations is the first department and includes:
 
@@ -249,9 +250,15 @@ Department actions are written to:
 memory/actions/YYYY-MM-DD.json
 ```
 
-Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error.
+Connector execution results are written to:
 
-Publishing and campaign execution are never implied. Until real executors are configured, Social Agent and Ads Agent produce prepared or blocked records rather than fake published posts or fake active campaigns.
+```text
+memory/executions/YYYY-MM-DD.json
+```
+
+Each action includes timestamp, initiative, department, agent, action, expected business impact, delegated authority used, status, result, next step, retry, and error. Each connector execution includes task id, connector, status, artifact IDs, proof, error, and next retry.
+
+Publishing and campaign execution are never implied. If the AI says it published a Reel, the log must include a URL, timestamp, and Buffer post/update ID. If it says it started a campaign, the log must include campaign ID, budget, status, and verified Meta proof.
 
 ## v1.0 Foundation
 
@@ -332,7 +339,7 @@ Rules:
 - Campaign execution requires a real Meta execution provider. A campaign is not active unless verified by Meta data.
 - WhatsApp lead tracking requires bot event integration through `WHATSAPP_EVENTS_PATH` or `WHATSAPP_WEBHOOK_URL`.
 - Every KPI used for decisions should carry source attribution such as `source: unavailable|mock|json_events|webhook|meta_graph` and `verified: true|false`.
-- The CEO brief must separate recommended actions, prepared actions, and executed actions.
+- The CEO brief must separate completed execution, blocked execution, failed execution, and next automatic retry.
 - If there is no verified data, the brief must say `No verified data available yet`.
 
 ## Operator Execution Queue
@@ -343,7 +350,7 @@ Every daily report includes an internal `execution_queue` with:
 
 - `initiative`: the business initiative for the day.
 - `today_mission`: the concrete outcome the AI CMO is trying to create.
-- `currently_working_on`: tasks ready to execute under delegated authority.
+- `currently_working_on`: internal tasks selected by delegated authority.
 - `internal_tasks`: AI-owned work such as Meta sync, WhatsApp tracking, CTA review, content preparation, competitor/ICP research, and repository review.
 - `pending_escalations`: decisions that exceed delegated authority.
 
@@ -358,18 +365,23 @@ The CEO brief should stay to one page and include only:
 - What is currently in progress.
 - Decisions requiring escalation.
 
-If `executed_actions_today` is `none`, the AI CMO must still produce a useful execution queue for itself.
+If `executed_actions_today` is `none`, the CEO brief should say that no external execution completed and report only blocked/failed execution that matters.
 
 ## Marketing Department Executors
 
-Marketing Operations can prepare content, creative specs, video scripts, CTA patches, outreach drafts, and analytics checks without external credentials.
+Marketing Operations can create internal task payloads without external credentials, but the CEO brief must not report them as accomplishments. Accomplishments require execution proof from a connector.
 
-Actual publishing requires a real executor:
+Sprint 1 execution connector:
+
+- `BufferExecutor`: accepts a social publishing task, calls Buffer, requires a Buffer update ID, records the URL when available, and logs completion/failure.
+
+Actual publishing requires:
 
 ```bash
 SOCIAL_PUBLISHING_ENABLED=true
 BUFFER_ACCESS_TOKEN=
 BUFFER_PROFILE_ID=
+EXECUTION_DRY_RUN=false
 ```
 
 Actual campaign creation requires a real Meta execution provider:
@@ -378,7 +390,7 @@ Actual campaign creation requires a real Meta execution provider:
 META_EXECUTION_ENABLED=true
 ```
 
-These flags do not make the repo pretend execution happened. They only indicate that the runtime is allowed to hand prepared payloads to a real executor once that executor exists. A post is published only when the action log contains a real URL or post ID. A campaign is active only when verified Meta data confirms it.
+These flags do not make the repo pretend execution happened. A post is published only when the execution log contains a real URL or Buffer update ID. A campaign is active only when verified Meta data confirms it.
 
 ## Delivery Model
 
@@ -470,6 +482,7 @@ memory/decisions/YYYY-MM-DD.json
 memory/reports/YYYY-MM-DD.json
 memory/runs/YYYYMMDD-HHMMSS.json
 memory/actions/YYYY-MM-DD.json
+memory/executions/YYYY-MM-DD.json
 ```
 
 `memory/reports/YYYY-MM-DD.json` is the source of truth. The Markdown brief is only one view. Later, the same record can power email, dashboard, WhatsApp summary, weekly report, and monthly report.

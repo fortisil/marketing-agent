@@ -127,7 +127,9 @@ def generate_daily_brief(settings: Settings) -> GeneratedBrief:
         objectives_config=objectives_config,
         timezone=settings.timezone,
         social_publishing_enabled=settings.social_publishing_enabled,
-        buffer_configured=bool(settings.buffer_access_token and settings.buffer_profile_id),
+        buffer_access_token=settings.buffer_access_token,
+        buffer_profile_id=settings.buffer_profile_id,
+        execution_dry_run=settings.execution_dry_run,
         meta_execution_enabled=settings.meta_execution_enabled,
     ).run(decision_context)
     attach_marketing_department_output(decision_context, marketing_department_output)

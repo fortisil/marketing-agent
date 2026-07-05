@@ -103,12 +103,14 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(len(agents), 8)
         self.assertEqual(agents[0], "Content Agent")
         self.assertIn("Outreach Agent", agents)
-        self.assertEqual(actions["Content Agent"]["status"], "prepared")
+        self.assertEqual(actions["Content Agent"]["status"], "internal_memory")
         self.assertEqual(actions["Social Agent"]["status"], "blocked")
         self.assertEqual(actions["Ads Agent"]["status"], "blocked")
         self.assertFalse(actions["Social Agent"]["result"]["executed"])
         self.assertFalse(actions["Ads Agent"]["result"]["executed"])
         self.assertEqual(actions["Social Agent"]["result"]["recorded_post_ids"], [])
+        self.assertEqual(payload["execution_results"][0]["connector"], "BufferExecutor")
+        self.assertEqual(payload["execution_results"][0]["status"], "blocked")
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()
@@ -125,8 +127,10 @@ class MarketingDepartmentTests(unittest.TestCase):
             context.summary["execution_departments"]["active_department"],
             "Marketing Operations",
         )
-        self.assertIn("Prepared today's law-firm Reel content plan", context.summary["prepared_actions"])
-        self.assertIn("Checked social publishing readiness", context.summary["blocked_actions"])
+        self.assertEqual(context.summary["prepared_actions"], [])
+        self.assertIn("Prepared today's law-firm Reel content plan", context.summary["internal_memory_tasks"])
+        self.assertIn("Dispatched Reel publishing task to BufferExecutor", context.summary["blocked_actions"])
+        self.assertIn("connector_execution", context.summary)
 
     def test_file_output_writes_daily_action_memory(self) -> None:
         context = _context()
@@ -145,10 +149,14 @@ class MarketingDepartmentTests(unittest.TestCase):
                 dry_run=False,
             )
             actions_path = result.paths["actions"]
+            executions_path = result.paths["executions"]
             actions = json.loads(actions_path.read_text(encoding="utf-8"))
+            executions = json.loads(executions_path.read_text(encoding="utf-8"))
 
         self.assertTrue(actions_path.name.endswith(".json"))
         self.assertEqual(len(actions), 8)
+        self.assertEqual(len(executions), 1)
+        self.assertEqual(executions[0]["connector"], "BufferExecutor")
         self.assertEqual(actions[0]["initiative"], "Acquire the first three paying law firms")
         self.assertIn("delegated_authority_used", actions[0])
 
