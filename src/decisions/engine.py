@@ -161,6 +161,14 @@ class DecisionEngine:
         initiatives = self._initiatives(recommendations, whatsapp_bot, website_intelligence)
         tasks = self._tasks_from_recommendations(recommendations, initiatives, run_date)
         chief_of_staff_plan = ChiefOfStaff(delegated_authority).plan(tasks)
+        execution_queue = self._execution_queue(
+            recommendations=recommendations,
+            chief_of_staff_plan=chief_of_staff_plan.to_dict(),
+            marketing_platform=marketing_platform,
+            meta_ads=meta_ads,
+            whatsapp_bot=whatsapp_bot,
+            website_intelligence=website_intelligence,
+        )
         okr_status = self._okr_status(metrics)
         board_advisors = self._board_advisors(metrics, okr_status)
         judgment_scorecard = self._judgment_scorecard()
@@ -184,7 +192,11 @@ class DecisionEngine:
             whatsapp_bot=whatsapp_bot,
             meta_ads=meta_ads,
         )
-        execution_reality = self._execution_reality(recommendations, chief_of_staff_plan.autonomous_action_log)
+        execution_reality = self._execution_reality(
+            recommendations,
+            chief_of_staff_plan.autonomous_action_log,
+            execution_queue,
+        )
         summary = {
             "data_confidence": data_confidence,
             "primary_kpi": primary_kpi,
@@ -197,6 +209,7 @@ class DecisionEngine:
             "metric_sources": metric_sources,
             "data_status": self._data_status(whatsapp_bot, meta_ads),
             "execution_reality": execution_reality,
+            "execution_queue": execution_queue,
             "executed_actions_today": execution_reality["executed_actions_today"],
             "prepared_actions": execution_reality["prepared_actions"],
             "recommended_actions": execution_reality["recommended_actions"],
@@ -365,21 +378,129 @@ class DecisionEngine:
         self,
         recommendations: list[Recommendation],
         autonomous_action_log: list[dict[str, Any]],
+        execution_queue: dict[str, Any],
     ) -> dict[str, Any]:
         executed = [
-            str(item.get("task"))
+            str(item.get("task") or item.get("what_it_did"))
             for item in autonomous_action_log
-            if isinstance(item, dict) and item.get("status") == "executed"
+            if isinstance(item, dict) and item.get("actual_outcome") == "executed"
         ]
         prepared = [
-            str(item.get("task"))
+            str(item.get("task") or item.get("what_it_did"))
             for item in autonomous_action_log
-            if isinstance(item, dict) and item.get("status") in {"prepared", "drafted"}
+            if isinstance(item, dict) and item.get("actual_outcome") in {"planned", "draft_only"}
         ]
         return {
             "executed_actions_today": executed or ["none"],
             "prepared_actions": prepared,
+            "currently_working_on": execution_queue.get("currently_working_on", []),
             "recommended_actions": [recommendation.title for recommendation in recommendations],
+        }
+
+    def _execution_queue(
+        self,
+        *,
+        recommendations: list[Recommendation],
+        chief_of_staff_plan: dict[str, Any],
+        marketing_platform: dict[str, Any],
+        meta_ads: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+        website_intelligence: dict[str, Any],
+    ) -> dict[str, Any]:
+        run_today = chief_of_staff_plan.get("run_today", [])
+        conflicts = chief_of_staff_plan.get("conflicts", [])
+        current_work = [
+            {
+                "task": str(item.get("task")),
+                "status": "ready_to_execute",
+                "source": "delegated_authority",
+                "expected_business_impact": item.get("expected_business_impact"),
+            }
+            for item in run_today
+            if isinstance(item, dict)
+        ]
+
+        internal_tasks = [
+            {
+                "task": "Reconnect Meta MCP / Graph metric sync",
+                "status": (
+                    "waiting_for_execution_environment"
+                    if marketing_platform.get("mcp", {}).get("requires_external_mcp_execution")
+                    or not meta_ads.get("available")
+                    else "verified"
+                ),
+                "retry": "tomorrow 08:00",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Verify campaign status",
+                "status": (
+                    "done"
+                    if meta_ads.get("campaign_status") in {"active", "paused", "not_started"}
+                    and meta_ads.get("verified")
+                    else "pending_verified_meta_data"
+                ),
+                "retry": "tomorrow 08:00",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Connect WhatsApp bot event log/webhook",
+                "status": "pending_integration" if not whatsapp_bot.get("verified") else "verified",
+                "retry": "tomorrow 08:00",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Review homepage CTA and above-the-fold WhatsApp path",
+                "status": "ready_to_execute",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Prepare founder-led Reel / Story sequence",
+                "status": "ready_to_execute",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Research 10 Israeli law firms matching the ICP",
+                "status": "ready_to_execute",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Draft outreach messages for qualified law firms",
+                "status": "ready_to_execute",
+                "ceo_visible": False,
+            },
+            {
+                "task": "Review latest website and repository changes",
+                "status": "ready_to_execute",
+                "ceo_visible": False,
+            },
+        ]
+
+        if website_intelligence.get("missing_or_weak_ctas"):
+            internal_tasks.append(
+                {
+                    "task": "Patch weak website CTA toward WhatsApp demo booking",
+                    "status": "ready_to_execute",
+                    "ceo_visible": False,
+                }
+            )
+
+        recommended_titles = [recommendation.title for recommendation in recommendations]
+        return {
+            "initiative": "Acquire the first three paying law firms",
+            "today_mission": "Generate one qualified law firm demo today.",
+            "estimated_business_impact": "High",
+            "currently_working_on": current_work[:6],
+            "internal_tasks": internal_tasks,
+            "pending_escalations": [
+                {
+                    "task": str(item.get("task")),
+                    "reason": str(item.get("reason", "Decision exceeds delegated authority.")),
+                }
+                for item in conflicts
+                if isinstance(item, dict)
+            ],
+            "recommended_actions": recommended_titles,
         }
 
     def _budget_decision(self, now: datetime, spend: float, daily_budget_ils: float) -> str:
@@ -760,6 +881,32 @@ class DecisionEngine:
         whatsapp_bot: dict[str, Any],
     ) -> list[Recommendation]:
         recommendations = [
+            Recommendation(
+                title="Generate one qualified law firm demo today",
+                reason=(
+                    "The highest-impact business outcome is a qualified demo. With limited verified data, use direct execution: content, website CTA improvement, ICP research, and outreach preparation."
+                ),
+                estimated_impact="High",
+                confidence=0.86,
+            ),
+            Recommendation(
+                title="Prepare Israeli law firm outreach shortlist",
+                reason="Direct ICP research can create sales opportunities without waiting for Meta or WhatsApp integrations.",
+                estimated_impact="High",
+                confidence=0.82,
+            ),
+            Recommendation(
+                title="Improve homepage WhatsApp demo CTA",
+                reason="A stronger above-the-fold WhatsApp path can improve demo intent capture once traffic arrives.",
+                estimated_impact="High",
+                confidence=0.8,
+            ),
+            Recommendation(
+                title="Prepare founder-led Reel and Instagram Story",
+                reason="Founder-led content can create demand today without depending on paid campaign status.",
+                estimated_impact="Medium",
+                confidence=0.76,
+            ),
             Recommendation(
                 title="Connect verified WhatsApp lead tracking",
                 reason=(

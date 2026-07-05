@@ -122,6 +122,72 @@ class AutonomousOperatingPrincipleTests(unittest.TestCase):
         self.assertIn("Growth Advisor", json.dumps(report["board_advisors"], ensure_ascii=False))
         self.assertIn("Design System Advisor", json.dumps(report["board_advisors"], ensure_ascii=False))
 
+    def test_decision_context_contains_operator_execution_queue(self) -> None:
+        snapshot = MetricSnapshot(
+            provider="whatsapp_bot",
+            collected_at=datetime(2026, 7, 5, 8, 0, tzinfo=ZoneInfo("Asia/Jerusalem")),
+            metrics={
+                "whatsapp_bot": {
+                    "available": False,
+                    "verified": False,
+                    "reason": "No verified WhatsApp event data available.",
+                },
+                "meta_ads": {
+                    "available": False,
+                    "verified": False,
+                    "campaign_status": "unknown",
+                    "campaign_status_note": "No campaign has been verified as active.",
+                },
+                "marketing_platform": {
+                    "mcp": {"requires_external_mcp_execution": True},
+                    "metrics_available": False,
+                },
+            },
+        )
+        context = DecisionEngine(
+            company_config={
+                "company": {"name": "ChatBot2U"},
+                "marketing": {
+                    "primary_kpi": "booked demos",
+                    "budget_rule": {"amount_ils_per_day": 20},
+                },
+            },
+            objectives_config={
+                "company_state": "Validation",
+                "targets": {"demos_per_week": 3},
+                "delegated_authority": {
+                    "marketing": {
+                        "publish_posts": "always",
+                        "create_post_drafts": "always",
+                        "publish_reels": "always",
+                    },
+                    "website": {"update_cta": "always"},
+                    "ads": {"create_campaigns": "always", "daily_budget_limit_ils": 20},
+                    "sales": {"schedule_demo": "always", "follow_up": "always"},
+                },
+            },
+            company_knowledge="ChatBot2U sells WhatsApp automation.",
+            timezone="Asia/Jerusalem",
+        ).evaluate([snapshot])
+
+        summary = context.summary
+        queue = summary["execution_queue"]
+
+        self.assertEqual(queue["initiative"], "Acquire the first three paying law firms")
+        self.assertEqual(queue["today_mission"], "Generate one qualified law firm demo today.")
+        self.assertIn("currently_working_on", queue)
+        self.assertIn("internal_tasks", queue)
+        self.assertIn(
+            "Generate one qualified law firm demo today",
+            summary["recommended_actions"],
+        )
+        self.assertTrue(
+            any(task["task"] == "Reconnect Meta MCP / Graph metric sync" for task in queue["internal_tasks"])
+        )
+        self.assertTrue(
+            any(task["ceo_visible"] is False for task in queue["internal_tasks"])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

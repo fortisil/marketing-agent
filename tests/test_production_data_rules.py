@@ -178,6 +178,10 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("Write a daily CEO brief in English", prompt)
         self.assertIn("No verified data available yet", prompt)
         self.assertIn("Data confidence:", prompt)
+        self.assertIn("Write like an operator, not a reporter.", prompt)
+        self.assertIn("Keep the CEO brief to one page.", prompt)
+        self.assertIn("execution_queue", prompt)
+        self.assertIn("Do not include long internal task lists", prompt)
         self.assertNotIn("כתוב בריף", prompt)
 
 

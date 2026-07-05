@@ -29,7 +29,7 @@ def build_prompt(
         return f"""
 Write a daily CEO brief in English for {company["name"]}.
 
-This is not a generic report. It is an AI CMO brief for Rami that must help ChatBot2U make better growth decisions without overstating reality.
+This is not a generic report. It is an AI CMO brief for Rami that must help ChatBot2U make better growth decisions without overstating reality. Write like an operator, not a reporter.
 
 Mandatory trust banner at the very top:
 Data confidence:
@@ -37,12 +37,14 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, and `execution_reality` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, and `execution_queue` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
 - Clearly separate real data, mock data, unavailable data, recommended action, prepared action, and executed action.
+- Internal tasks belong to the AI CMO execution queue. Mention only the small number that affects today's initiative or requires escalation.
+- Do not ask the CEO to fetch metrics. If Meta/WhatsApp sync is pending, describe it as an internal execution queue item with status and retry.
 - Do not imply that a Meta campaign is active unless `campaign_status` is `active` and verified.
 - If no verified campaign exists, say: "No campaign has been verified as active."
 - If WhatsApp data is unavailable, say: "No verified WhatsApp event data available."
@@ -51,24 +53,17 @@ Hard rules:
 - The CEO brief to Rami must be English. Do not write Hebrew except for brand names, quoted terms, or phone/contact details.
 - Use DailyReport as the source of truth. The email is only a Markdown view of the structured data.
 
-The brief must include:
+Keep the CEO brief to one page. Include only:
 1. Data confidence trust banner.
 2. Executive Summary.
-3. Data Reality: real data, unavailable data, and any mock data. If no verified data exists, say exactly "No verified data available yet."
-4. Execution Reality:
-   - Executed actions today
-   - Prepared actions
-   - Recommended actions
-5. Business Health.
-6. Marketing Health.
-7. Funnel Summary. Do not show fake WhatsApp counts.
-8. Campaign Status. Include campaign_status and whether it is verified.
-9. Today's Mission.
-10. Top Three Recommended Actions.
-11. Expected Business Impact.
-12. Risks / Missing Data.
-13. Confidence.
-14. Judgment & Calibration.
+3. What changed.
+4. Today's initiative.
+5. What I already executed.
+6. What I am currently working on.
+7. Decisions requiring escalation, if any.
+8. Missing verified data only when it affects today's decision.
+
+Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
 
 Budget rules:
 - Daily budget: ₪{budget_rule["amount_ils_per_day"]}

@@ -289,6 +289,31 @@ Rules:
 - The CEO brief must separate recommended actions, prepared actions, and executed actions.
 - If there is no verified data, the brief must say `No verified data available yet`.
 
+## Operator Execution Queue
+
+The AI Executive OS should operate the business, not only report on it.
+
+Every daily report includes an internal `execution_queue` with:
+
+- `initiative`: the business initiative for the day.
+- `today_mission`: the concrete outcome the AI CMO is trying to create.
+- `currently_working_on`: tasks ready to execute under delegated authority.
+- `internal_tasks`: AI-owned work such as Meta sync, WhatsApp tracking, CTA review, content preparation, competitor/ICP research, and repository review.
+- `pending_escalations`: decisions that exceed delegated authority.
+
+Internal tasks are not user tasks. They should not clutter the CEO brief.
+
+The CEO brief should stay to one page and include only:
+
+- Executive summary.
+- What changed.
+- Today's initiative.
+- What was executed.
+- What is currently in progress.
+- Decisions requiring escalation.
+
+If `executed_actions_today` is `none`, the AI CMO must still produce a useful execution queue for itself.
+
 ## Delivery Model
 
 The AI CMO produces the brief and can send it independently through Resend.
