@@ -565,11 +565,12 @@ CLOUDINARY_API_SECRET=
 Run the execution-only acceptance command:
 
 ```bash
+python -m src.main --preflight
 python -m src.main --check-connectors
 python -m src.main --execute-marketing --require-business-artifact
 ```
 
-These commands do not send the CEO brief. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
+These commands do not send the CEO brief. The preflight command prints clean readiness JSON for tomorrow's production run. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
 
 The GitHub Actions acceptance workflow is:
 
@@ -579,8 +580,10 @@ The GitHub Actions acceptance workflow is:
 
 Configure the CMO environment before using it as a real publishing run:
 
-- Secrets: `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `OPENAI_API_KEY`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-- Variables: `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_UPLOAD_PROVIDER=cloudinary`
+- Secrets: `OPENAI_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO`, `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- Variables: `APP_ENV=production`, `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_UPLOAD_PROVIDER=cloudinary`, `OPENAI_IMAGE_MODEL=gpt-image-1`
+
+`ASSET_PUBLIC_BASE_URL` is optional when `ASSET_UPLOAD_PROVIDER=cloudinary` because Cloudinary returns the public image URL used by Buffer.
 
 Actual campaign creation requires a real Meta execution provider:
 
@@ -724,29 +727,48 @@ See `.env.example` for all supported variables.
 The production path is GitHub Actions plus Resend. The scheduled workflow runs:
 
 ```bash
+python -m src.main --preflight
 python -m src.main --send-now
 ```
 
-The workflow runs daily at `05:00 UTC`, which is `08:00` in Israel during UTC+3 daylight time, and also supports manual runs through `workflow_dispatch`.
+The workflow runs daily at `05:00 UTC`, which is `08:00` in Israel during UTC+3 daylight time, and also supports manual runs through `workflow_dispatch`. `--send-now` executes the Marketing Workforce before generating the email, so the CEO brief reports Completed, Blocked, or Failed execution from that run.
 
-Configure these GitHub repository secrets before enabling the scheduled run:
+Configure these GitHub CMO environment secrets before enabling the scheduled run:
 
 ```text
 OPENAI_API_KEY
 RESEND_API_KEY
 EMAIL_FROM
 EMAIL_TO
+BUFFER_ACCESS_TOKEN
+BUFFER_PROFILE_ID
+CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET
 ```
 
 `EMAIL_TO` should normally be `rami@gateco.ai`. If it is not configured, the workflow falls back to `rami@gateco.ai`.
 
-Optional GitHub repository variable:
+Required GitHub CMO environment variables:
+
+```text
+APP_ENV=production
+SOCIAL_PUBLISHING_ENABLED=true
+EXECUTION_DRY_RUN=false
+IMAGE_GENERATION_ENABLED=true
+ASSET_UPLOAD_PROVIDER=cloudinary
+OPENAI_IMAGE_MODEL=gpt-image-1
+```
+
+Optional variables:
 
 ```text
 OPENAI_MODEL
+ASSET_PUBLIC_BASE_URL
+META_API_VERSION
 ```
 
-If `OPENAI_MODEL` is not set, the workflow uses `gpt-4o-mini`.
+If `OPENAI_MODEL` is not set, the workflow uses `gpt-4o-mini`. `ASSET_PUBLIC_BASE_URL` is not required when Cloudinary upload is configured.
 
 To send a brief manually:
 

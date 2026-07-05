@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import logging
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -267,6 +268,170 @@ def check_connectors(settings: Settings) -> dict[str, Any]:
     return payload
 
 
+def preflight(settings: Settings) -> dict[str, Any]:
+    required_secrets = {
+        "OPENAI_API_KEY": bool(settings.openai_api_key),
+        "RESEND_API_KEY": bool(settings.resend_api_key),
+        "EMAIL_FROM": bool(settings.email_from),
+        "EMAIL_TO": bool(settings.email_to),
+        "BUFFER_ACCESS_TOKEN": bool(settings.buffer_access_token),
+        "BUFFER_PROFILE_ID": bool(settings.buffer_profile_id),
+        "CLOUDINARY_CLOUD_NAME": bool(settings.cloudinary_cloud_name),
+        "CLOUDINARY_API_KEY": bool(settings.cloudinary_api_key),
+        "CLOUDINARY_API_SECRET": bool(settings.cloudinary_api_secret),
+    }
+    required_vars = {
+        "APP_ENV": {
+            "expected": "production",
+            "actual": settings.app_env,
+            "ok": settings.app_env == "production",
+        },
+        "SOCIAL_PUBLISHING_ENABLED": {
+            "expected": True,
+            "actual": settings.social_publishing_enabled,
+            "ok": settings.social_publishing_enabled is True,
+        },
+        "EXECUTION_DRY_RUN": {
+            "expected": False,
+            "actual": settings.execution_dry_run,
+            "ok": settings.execution_dry_run is False,
+        },
+        "IMAGE_GENERATION_ENABLED": {
+            "expected": True,
+            "actual": settings.image_generation_enabled,
+            "ok": settings.image_generation_enabled is True,
+        },
+        "ASSET_UPLOAD_PROVIDER": {
+            "expected": "cloudinary",
+            "actual": settings.asset_upload_provider,
+            "ok": settings.asset_upload_provider == "cloudinary",
+        },
+        "ASSET_PUBLIC_BASE_URL": {
+            "expected": "public URL or Cloudinary upload provider",
+            "actual": settings.asset_public_base_url or "provided by Cloudinary",
+            "ok": bool(settings.asset_public_base_url) or settings.asset_upload_provider == "cloudinary",
+        },
+        "OPENAI_IMAGE_MODEL": {
+            "expected": "gpt-image-1",
+            "actual": settings.openai_image_model,
+            "ok": settings.openai_image_model == "gpt-image-1",
+        },
+    }
+    workflows = {
+        "daily-brief.yml": _workflow_status(
+            Path(".github/workflows/daily-brief.yml"),
+            required_terms=[
+                "workflow_dispatch:",
+                "schedule:",
+                "python -m src.main --preflight",
+                "python -m src.main --send-now",
+                "APP_ENV: production",
+                'ALLOW_MOCK_DATA: "false"',
+            ],
+        ),
+        "autonomous-marketing.yml": _workflow_status(
+            Path(".github/workflows/autonomous-marketing.yml"),
+            required_terms=[
+                "workflow_dispatch:",
+                "python -m src.main --execute-marketing --require-business-artifact",
+                "APP_ENV: production",
+                'ALLOW_MOCK_DATA: "false"',
+            ],
+        ),
+    }
+    blocking_issues = [
+        f"Missing required secret/env: {name}"
+        for name, configured in required_secrets.items()
+        if not configured
+    ]
+    blocking_issues.extend(
+        f"{name} must be {details['expected']}, currently {details['actual']}"
+        for name, details in required_vars.items()
+        if not details["ok"]
+    )
+    blocking_issues.extend(
+        f"{name} is missing workflow requirement: {missing}"
+        for name, status in workflows.items()
+        for missing in status["missing_terms"]
+    )
+    warnings = []
+    if not settings.meta_access_token or not settings.meta_ig_account_id:
+        warnings.append("Meta metrics may be unavailable; production brief must report unavailable instead of fake data.")
+    if not settings.whatsapp_events_path and not settings.whatsapp_webhook_url:
+        warnings.append("WhatsApp attribution is not connected; production brief must report unavailable instead of fake data.")
+    last_artifact_status = _last_artifact_status(settings.memory_path)
+    payload = {
+        "ready_for_tomorrow": not blocking_issues,
+        "blocking_issues": blocking_issues,
+        "warnings": warnings,
+        "workflows": workflows,
+        "required_secrets": {
+            name: {"configured": configured}
+            for name, configured in required_secrets.items()
+        },
+        "required_vars": required_vars,
+        "last_artifact_status": last_artifact_status,
+    }
+    print(json.dumps(payload, ensure_ascii=False))
+    return payload
+
+
+def _workflow_status(path: Path, *, required_terms: list[str]) -> dict[str, Any]:
+    if not path.exists():
+        return {
+            "exists": False,
+            "ok": False,
+            "missing_terms": required_terms,
+        }
+    text = path.read_text(encoding="utf-8")
+    missing = [term for term in required_terms if term not in text]
+    return {
+        "exists": True,
+        "ok": not missing,
+        "missing_terms": missing,
+    }
+
+
+def _last_artifact_status(memory_path: Path) -> dict[str, Any]:
+    executions_dir = memory_path / "executions"
+    if not executions_dir.exists():
+        return {
+            "status": "none",
+            "reason": "No execution log directory exists yet.",
+        }
+    execution_files = sorted(executions_dir.glob("*.json"), reverse=True)
+    if not execution_files:
+        return {
+            "status": "none",
+            "reason": "No execution logs found.",
+        }
+    latest = execution_files[0]
+    try:
+        records = json.loads(latest.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {
+            "status": "unreadable",
+            "path": str(latest),
+        }
+    if not isinstance(records, list):
+        return {
+            "status": "unreadable",
+            "path": str(latest),
+        }
+    published = _published_business_artifacts(
+        [item for item in records if isinstance(item, dict) and item.get("status") == "completed"]
+    )
+    failed = [item for item in records if isinstance(item, dict) and item.get("status") == "failed"]
+    blocked = [item for item in records if isinstance(item, dict) and item.get("status") == "blocked"]
+    return {
+        "status": "published" if published else "failed" if failed else "blocked" if blocked else "no_execution",
+        "path": str(latest),
+        "published_artifacts": published,
+        "blocked_count": len(blocked),
+        "failed_count": len(failed),
+    }
+
+
 def _published_business_artifacts(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     artifacts: list[dict[str, Any]] = []
     for result in results:
@@ -430,6 +595,11 @@ def parse_args() -> argparse.Namespace:
         help="Validate external execution connector credentials and access without sending a CEO brief.",
     )
     parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Print clean JSON readiness for tomorrow morning's production run.",
+    )
+    parser.add_argument(
         "--write-evening-journal",
         action="store_true",
         help="Write an evening Executive Journal from the latest daily report.",
@@ -443,7 +613,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     settings = load_settings()
-    configure_logging("ERROR" if args.execute_marketing or args.check_connectors else settings.log_level)
+    configure_logging(
+        "ERROR"
+        if args.execute_marketing or args.check_connectors or args.preflight
+        else settings.log_level
+    )
 
     if args.dry_run:
         dry_run(settings)
@@ -463,6 +637,10 @@ def main() -> None:
 
     if args.check_connectors:
         check_connectors(settings)
+        return
+
+    if args.preflight:
+        preflight(settings)
         return
 
     if args.write_evening_journal:
