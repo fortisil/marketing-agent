@@ -71,6 +71,16 @@ class BufferExecutor:
                 next_retry="after ImageExecutor or VideoExecutor completes",
                 result={"required_media": True},
             )
+        if task.payload.get("require_public_media") and not str(task.payload.get("public_url") or "").startswith(
+            ("http://", "https://")
+        ):
+            return ExecutionResult.blocked(
+                task,
+                timezone=self.timezone,
+                error="Buffer task requires a public media URL before publishing.",
+                next_retry="after ImageExecutor uploads the asset to a public URL",
+                result={"required_public_url": True},
+            )
 
         if not self.access_token or not self.profile_id:
             return ExecutionResult.blocked(
@@ -146,6 +156,7 @@ class BufferExecutor:
             "caption_hash": str(task.payload.get("caption_hash") or ""),
             "image_sha256": str(task.payload.get("image_sha256") or ""),
             "image_path": str(task.payload.get("image_path") or ""),
+            "public_url": str(task.payload.get("public_url") or ""),
             "sent_to_buffer": True,
         }
         return ExecutionResult.completed(
@@ -156,6 +167,7 @@ class BufferExecutor:
                 "instagram_url": update_url,
                 "caption_hash": proof["caption_hash"],
                 "image_sha256": proof["image_sha256"],
+                "public_url": proof["public_url"],
             },
             proof=proof,
             result={"buffer_response": response},

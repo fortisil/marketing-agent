@@ -140,6 +140,10 @@ def execute_marketing_workforce(settings: Settings) -> MarketingExecution:
         openai_image_model=settings.openai_image_model,
         assets_root=settings.assets_root,
         asset_public_base_url=settings.asset_public_base_url,
+        asset_upload_provider=settings.asset_upload_provider,
+        cloudinary_cloud_name=settings.cloudinary_cloud_name,
+        cloudinary_api_key=settings.cloudinary_api_key,
+        cloudinary_api_secret=settings.cloudinary_api_secret,
         memory_root=settings.memory_path,
         meta_execution_enabled=settings.meta_execution_enabled,
     ).run(decision_context)

@@ -103,6 +103,10 @@ class MarketingDepartment:
         openai_image_model: str = "gpt-image-1",
         assets_root: Path | None = None,
         asset_public_base_url: str = "",
+        asset_upload_provider: str = "",
+        cloudinary_cloud_name: str = "",
+        cloudinary_api_key: str = "",
+        cloudinary_api_secret: str = "",
         memory_root: Path | None = None,
         meta_execution_enabled: bool = False,
     ) -> None:
@@ -118,6 +122,10 @@ class MarketingDepartment:
         self.openai_image_model = openai_image_model
         self.assets_root = assets_root or Path("assets/companies/chatbot2u")
         self.asset_public_base_url = asset_public_base_url.rstrip("/")
+        self.asset_upload_provider = asset_upload_provider
+        self.cloudinary_cloud_name = cloudinary_cloud_name
+        self.cloudinary_api_key = cloudinary_api_key
+        self.cloudinary_api_secret = cloudinary_api_secret
         self.memory_root = memory_root or Path("memory")
         self.meta_execution_enabled = meta_execution_enabled
 
@@ -136,7 +144,11 @@ class MarketingDepartment:
         image_task = self._image_task(brand_intelligence, content_output, decision_context.run_date)
         image_workforce_result = self._run_workforce([image_task])
         image_result = self._result_for(image_workforce_result.execution_results, "ImageExecutor")
-        buffer_task = self._buffer_task(content_output, image_result=image_result)
+        buffer_task = self._buffer_task(
+            content_output,
+            image_result=image_result,
+            run_date=decision_context.run_date,
+        )
         social_workforce_result = (
             self._run_workforce([buffer_task])
             if image_result is not None and image_result.status == "completed"
@@ -151,7 +163,12 @@ class MarketingDepartment:
             image_task,
             image_result,
         )
-        social_output = self._social_output(content_output, image_result, buffer_result)
+        social_output = self._social_output(
+            content_output,
+            image_result,
+            buffer_result,
+            decision_context.run_date,
+        )
         outputs = [
             content_output,
             design_output,
@@ -215,6 +232,10 @@ class MarketingDepartment:
                     enabled=self.image_generation_enabled,
                     dry_run=self.execution_dry_run,
                     model=self.openai_image_model,
+                    upload_provider=self.asset_upload_provider,
+                    cloudinary_cloud_name=self.cloudinary_cloud_name,
+                    cloudinary_api_key=self.cloudinary_api_key,
+                    cloudinary_api_secret=self.cloudinary_api_secret,
                 ),
                 BufferExecutor(
                     access_token=self.buffer_access_token,
@@ -399,7 +420,7 @@ class MarketingDepartment:
             "clear WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
         )
         execution_task = ExecutionTask(
-            id=f"{self.department.lower().replace(' ', '-')}-image",
+            id=f"{self.department.lower().replace(' ', '-')}-image-{run_date}",
             connector="ImageExecutor",
             action="generate_branded_social_image",
             initiative=self.initiative,
@@ -411,6 +432,7 @@ class MarketingDepartment:
                 "prompt": prompt,
                 "size": "1024x1024",
                 "brand_assets": brand_assets,
+                "require_public_url": True,
                 "alt_text": "ChatBot2U turns WhatsApp inquiries for law firms into structured demo-ready conversations.",
             },
         )
@@ -463,10 +485,11 @@ class MarketingDepartment:
         content_output: AgentOutput,
         image_result: ExecutionResult | None,
         result: ExecutionResult | None,
+        run_date: str,
     ) -> AgentOutput:
         if image_result is None or image_result.status != "completed":
             blocked_result = result or ExecutionResult.blocked(
-                self._buffer_task(content_output, image_result).execution_task,
+                self._buffer_task(content_output, image_result, run_date=run_date).execution_task,
                 timezone=self.timezone,
                 error="Image proof is required before publishing Instagram content.",
                 next_retry="after ImageExecutor completes",
@@ -494,7 +517,7 @@ class MarketingDepartment:
 
         if result is None:
             result = ExecutionResult.blocked(
-                self._buffer_task(content_output, image_result).execution_task,
+                self._buffer_task(content_output, image_result, run_date=run_date).execution_task,
                 timezone=self.timezone,
                 error="Social worker has not executed Buffer task yet.",
                 next_retry="next workforce scheduler run",
@@ -527,15 +550,17 @@ class MarketingDepartment:
         self,
         content_output: AgentOutput,
         image_result: ExecutionResult | None,
+        run_date: str,
     ) -> WorkTask:
         content = content_output.daily_output
         image_path = image_result.proof.get("image_path") if image_result else ""
         image_sha256 = image_result.proof.get("sha256") if image_result else ""
+        public_url = image_result.proof.get("public_url") if image_result else ""
         media: dict[str, str] = {}
-        if image_path and self.asset_public_base_url:
-            media["photo"] = f"{self.asset_public_base_url}/{Path(image_path).name}"
+        if public_url:
+            media["photo"] = str(public_url)
         execution_task = ExecutionTask(
-            id=f"{self.department.lower().replace(' ', '-')}-buffer-reel",
+            id=f"{self.department.lower().replace(' ', '-')}-buffer-reel-{run_date}",
             connector="BufferExecutor",
             action="publish_social_post",
             initiative=self.initiative,
@@ -556,8 +581,10 @@ class MarketingDepartment:
                 "media": media,
                 "image_path": image_path,
                 "image_sha256": image_sha256,
+                "public_url": public_url,
                 "caption_hash": self._caption_hash(content_output),
                 "require_media": True,
+                "require_public_media": True,
             },
         )
         return WorkTask(
@@ -567,7 +594,7 @@ class MarketingDepartment:
             title="Publish Instagram post through Buffer",
             execution_task=execution_task,
             priority=TaskPriority.HIGH,
-            dependencies=[f"{self.department.lower().replace(' ', '-')}-image"],
+            dependencies=[f"{self.department.lower().replace(' ', '-')}-image-{run_date}"],
             max_retries=3,
         )
 
@@ -750,6 +777,7 @@ def attach_marketing_department_output(
                 "timestamp",
                 "caption_hash",
                 "image_sha256",
+                "public_url",
                 "worker_id",
             ],
             "started_campaign": ["campaign_id", "budget", "status"],

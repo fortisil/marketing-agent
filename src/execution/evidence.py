@@ -11,6 +11,8 @@ REQUIRED_PROOF_BY_ACTION: dict[str, tuple[str, ...]] = {
     "generate_branded_social_image": (
         "image_path",
         "sha256",
+        "public_url",
+        "upload_provider",
         "brand_validation",
         "timestamp",
         "worker_id",
@@ -21,6 +23,7 @@ REQUIRED_PROOF_BY_ACTION: dict[str, tuple[str, ...]] = {
         "timestamp",
         "caption_hash",
         "image_sha256",
+        "public_url",
         "worker_id",
     ),
 }
@@ -60,10 +63,16 @@ class EvidenceValidator:
             image_path = proof.get("image_path")
             if self._present(image_path) and not Path(str(image_path)).exists():
                 invalid.append("image_path must exist")
+            url = str(proof.get("public_url") or "")
+            if url and not url.startswith(("http://", "https://")):
+                invalid.append("public_url must be an absolute URL")
         if action == "publish_social_post":
             url = str(proof.get("instagram_url") or "")
             if url and not url.startswith(("http://", "https://")):
                 invalid.append("instagram_url must be an absolute URL")
+            public_url = str(proof.get("public_url") or "")
+            if public_url and not public_url.startswith(("http://", "https://")):
+                invalid.append("public_url must be an absolute URL")
             if proof.get("caption_hash") and len(str(proof["caption_hash"])) < 32:
                 invalid.append("caption_hash must be a stable content hash")
             if proof.get("image_sha256") and len(str(proof["image_sha256"])) != 64:

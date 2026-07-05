@@ -51,3 +51,7 @@ jobs:
           IMAGE_GENERATION_ENABLED: ${{ vars.IMAGE_GENERATION_ENABLED || 'false' }}
           OPENAI_IMAGE_MODEL: ${{ vars.OPENAI_IMAGE_MODEL || 'gpt-image-1' }}
           ASSET_PUBLIC_BASE_URL: ${{ vars.ASSET_PUBLIC_BASE_URL || '' }}
+          ASSET_UPLOAD_PROVIDER: ${{ vars.ASSET_UPLOAD_PROVIDER || '' }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}

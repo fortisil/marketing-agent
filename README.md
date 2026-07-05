@@ -471,8 +471,8 @@ Marketing Operations can create internal task payloads without external credenti
 
 Sprint 1 execution connector:
 
-- `BufferExecutor`: accepts a social publishing task, calls Buffer, requires a Buffer update ID, records the URL when available, and logs completion/failure.
-- `ImageExecutor`: accepts a branded image task, validates Brand Brain inputs, generates a PNG when enabled, stores it under `assets/companies/chatbot2u/social/YYYY-MM-DD/`, records the image path and SHA-256, and blocks Buffer publishing until image proof exists.
+- `BufferExecutor`: accepts a social publishing task, calls Buffer, requires a Buffer update ID, requires public media URL proof for Instagram, records the Instagram URL when returned, and logs completion/failure.
+- `ImageExecutor`: accepts a branded image task, validates Brand Brain inputs, generates a PNG when enabled, stores it under `assets/companies/chatbot2u/social/YYYY-MM-DD/`, uploads it to Cloudinary when configured, records the image path, SHA-256, public URL, and upload provider, and blocks Buffer publishing until public image proof exists.
 
 Actual publishing requires:
 
@@ -483,7 +483,10 @@ BUFFER_PROFILE_ID=
 EXECUTION_DRY_RUN=false
 IMAGE_GENERATION_ENABLED=true
 OPENAI_IMAGE_MODEL=gpt-image-1
-ASSET_PUBLIC_BASE_URL=
+ASSET_UPLOAD_PROVIDER=cloudinary
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 ```
 
 Run the execution-only acceptance command:
@@ -502,8 +505,8 @@ The GitHub Actions acceptance workflow is:
 
 Configure the CMO environment before using it as a real publishing run:
 
-- Secrets: `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `OPENAI_API_KEY`
-- Variables: `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_PUBLIC_BASE_URL`
+- Secrets: `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `OPENAI_API_KEY`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- Variables: `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_UPLOAD_PROVIDER=cloudinary`
 
 Actual campaign creation requires a real Meta execution provider:
 
@@ -511,7 +514,7 @@ Actual campaign creation requires a real Meta execution provider:
 META_EXECUTION_ENABLED=true
 ```
 
-These flags do not make the repo pretend execution happened. A post is published only when the execution log contains a real URL or Buffer update ID. A campaign is active only when verified Meta data confirms it.
+These flags do not make the repo pretend execution happened. A post is published only when the execution log contains Buffer update ID, Instagram URL, timestamp, caption hash, image SHA-256, public image URL, and worker ID. A campaign is active only when verified Meta data confirms it.
 
 ## Delivery Model
 

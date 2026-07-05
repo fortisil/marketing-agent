@@ -51,6 +51,10 @@ class Settings:
     image_generation_enabled: bool
     openai_image_model: str
     asset_public_base_url: str
+    asset_upload_provider: str
+    cloudinary_cloud_name: str
+    cloudinary_api_key: str
+    cloudinary_api_secret: str
     meta_execution_enabled: bool
 
 
@@ -110,6 +114,10 @@ def load_settings() -> Settings:
         image_generation_enabled=os.getenv("IMAGE_GENERATION_ENABLED", "false").lower() == "true",
         openai_image_model=os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1"),
         asset_public_base_url=os.getenv("ASSET_PUBLIC_BASE_URL", ""),
+        asset_upload_provider=os.getenv("ASSET_UPLOAD_PROVIDER", "").strip().lower(),
+        cloudinary_cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", ""),
+        cloudinary_api_key=os.getenv("CLOUDINARY_API_KEY", ""),
+        cloudinary_api_secret=os.getenv("CLOUDINARY_API_SECRET", ""),
         meta_execution_enabled=os.getenv("META_EXECUTION_ENABLED", "false").lower() == "true",
     )
 

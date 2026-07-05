@@ -17,6 +17,7 @@ def _task(dry_run: bool = False) -> ExecutionTask:
             "caption_hash": "a" * 64,
             "image_sha256": "b" * 64,
             "image_path": "/tmp/image.png",
+            "public_url": "https://cdn.example.com/image.png",
         },
         delegated_authority_used="marketing.publish_posts",
         initiative="Acquire first paying law firms",
@@ -87,6 +88,7 @@ class BufferExecutorTests(unittest.TestCase):
         self.assertEqual(result.proof["instagram_url"], "https://buffer.com/app/posts/update_123")
         self.assertEqual(result.proof["caption_hash"], "a" * 64)
         self.assertEqual(result.proof["image_sha256"], "b" * 64)
+        self.assertEqual(result.proof["public_url"], "https://cdn.example.com/image.png")
         self.assertEqual(len(transport.calls), 1)
 
     def test_image_required_post_blocks_without_media(self) -> None:
@@ -110,6 +112,35 @@ class BufferExecutorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "blocked")
         self.assertEqual(result.error, "Buffer task requires media proof before publishing.")
+        self.assertEqual(transport.calls, [])
+
+    def test_public_media_required_blocks_without_public_url(self) -> None:
+        transport = FakeBufferTransport({"updates": [{"id": "ignored"}]})
+        task = ExecutionTask(
+            id="buffer-test",
+            connector="BufferExecutor",
+            action="publish_social_post",
+            payload={
+                "text": "Test post",
+                "publish_now": True,
+                "require_media": True,
+                "require_public_media": True,
+                "media": {"photo": "https://cdn.example.com/image.png"},
+            },
+            delegated_authority_used="marketing.publish_posts",
+            initiative="Acquire first paying law firms",
+            expected_business_impact="High",
+        )
+        result = BufferExecutor(
+            access_token="token",
+            profile_id="profile",
+            timezone="Asia/Jerusalem",
+            dry_run=False,
+            transport=transport,
+        ).execute(task)
+
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.error, "Buffer task requires a public media URL before publishing.")
         self.assertEqual(transport.calls, [])
 
 
