@@ -1,6 +1,11 @@
 name: ChatBot2U Daily Brief
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/daily-brief.yml"
   schedule:
     # 08:00 Israel time while Israel is on UTC+3 daylight time.
     - cron: "0 5 * * *"
