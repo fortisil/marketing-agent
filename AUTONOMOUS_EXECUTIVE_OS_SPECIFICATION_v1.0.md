@@ -375,3 +375,281 @@ The full specification will extend this foundation with:
 -   Production Operations
 -   Security
 -   Acceptance Tests
+
+
+
+# 15. Growth Intelligence
+
+The Executive OS SHALL spend at least as much effort analyzing yesterday's performance as creating today's content.
+
+## Daily Analysis
+
+Every day analyze:
+
+### Instagram
+- Reach
+- Impressions
+- Shares
+- Saves
+- Comments
+- Profile visits
+- Link clicks
+- WhatsApp clicks
+- Audience retention
+
+### Meta Ads
+- Spend
+- CPC
+- CPM
+- CTR
+- CPL
+- CPA
+- ROAS
+- Frequency
+- Learning status
+- Creative fatigue
+
+### WhatsApp
+- New conversations
+- Qualified leads
+- Demo requests
+- Booked demos
+- Customers
+- Drop-off stages
+- Response quality
+- Time to first response
+
+### Website
+- Sessions
+- Conversion rate
+- Bounce rate
+- CTA clicks
+- Landing page performance
+- GA4 events
+- Search Console
+- Core Web Vitals
+
+The AI SHALL produce one conclusion:
+"What should we stop, continue, improve, or scale?"
+
+---
+
+# 16. Promotion Brain
+
+The AI SHALL autonomously decide whether to:
+
+- Launch
+- Pause
+- Resume
+- Scale
+- Duplicate
+- Terminate
+
+a campaign.
+
+Decision inputs:
+- Business Value Score
+- Budget remaining
+- Revenue Influence Score
+- WhatsApp conversions
+- Demo rate
+- Customer acquisition
+- Creative fatigue
+
+Every decision must record:
+- Hypothesis
+- Expected outcome
+- Stop condition
+- Success criteria
+
+---
+
+# 17. Budget Guard
+
+The AI SHALL enforce:
+
+- Daily cap
+- Monthly cap
+- One active experiment per asset
+- Friday schedule
+- Saturday block
+- Duplicate prevention
+- Spend reconciliation
+
+If any rule fails:
+Campaign creation MUST stop.
+
+---
+
+# 18. Video Production
+
+OpenAI is responsible for:
+- Creative brief
+- Script
+- Storyboard
+- Shot list
+- Thumbnail concept
+- Branding
+- CTA
+
+HeyGen is responsible for:
+- Rendering
+- Voice
+- Avatar
+- Final MP4
+
+Every video must:
+- Be in Hebrew
+- Target Israeli law firms
+- Include WhatsApp CTA
+- Follow Brand Brain
+
+---
+
+# 19. Brand Brain
+
+Maintain:
+- Logos
+- Colors
+- Typography
+- Templates
+- Image styles
+- Voice
+- Tone
+- Messaging
+
+Marketing language:
+Hebrew.
+
+Internal language:
+English.
+
+The AI SHALL reject assets that do not meet premium agency quality.
+
+---
+
+# 20. Content Intelligence
+
+Every published asset receives:
+- Business Value Score
+- Conversion Score
+- Creative Score
+- ROI Prediction
+
+Daily ranking:
+- Promote
+- Keep organic
+- Retire
+
+---
+
+# 21. Learning Engine
+
+Maintain:
+- Experiment Register
+- Hypothesis Register
+- Decision Ledger
+- Prediction Accuracy
+- Business Memory
+
+Every completed experiment updates future strategy automatically.
+
+---
+
+# 22. Website Optimization
+
+Continuously evaluate:
+- CTA placement
+- Landing pages
+- SEO
+- Accessibility
+- Speed
+- Trust elements
+- Social proof
+
+Where possible, generate GitHub Pull Requests for improvements.
+
+---
+
+# 23. Connectors
+
+Production connectors include:
+- OpenAI
+- Meta
+- Buffer
+- Cloudinary
+- WhatsApp
+- Resend
+- GitHub
+- Google Analytics 4
+- Google Search Console
+- CRM
+- HeyGen
+
+Each connector must define:
+- Health
+- Retry policy
+- Evidence
+- Monitoring
+- Failure handling
+
+---
+
+# 24. Monitoring
+
+The Executive OS SHALL expose:
+
+- Health status
+- Last successful run
+- Next scheduled run
+- Last published asset
+- Last campaign
+- Last email
+- Blocking issues
+
+Missed runs SHALL generate alerts.
+
+---
+
+# 25. Weekly Executive Review
+
+Every Sunday automatically review:
+- Revenue
+- Leads
+- Demos
+- Customers
+- ROI
+- Best campaigns
+- Worst campaigns
+- Lessons learned
+- Next week's priorities
+
+---
+
+# 26. Acceptance Criteria
+
+The system is NOT complete until it can demonstrate:
+
+✓ Real content published
+✓ Agency-quality creative
+✓ WhatsApp attribution
+✓ Meta optimization
+✓ Budget enforcement
+✓ Website optimization
+✓ Daily CEO brief
+✓ Learning from outcomes
+✓ Revenue influence tracking
+✓ Thirty consecutive autonomous operating days
+
+---
+
+# 27. Final Definition of Done
+
+The Autonomous Executive Operating System is complete when:
+
+- It continuously acquires additional paying customers.
+- It autonomously creates, measures, improves, and promotes marketing.
+- It uses evidence rather than assumptions.
+- It learns from outcomes.
+- It remains inside delegated authority.
+- It requires no daily operational management from the CEO.

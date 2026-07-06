@@ -37,7 +37,7 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `budget_status`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `self_evaluation`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
@@ -49,7 +49,9 @@ Hard rules:
 - Include `Autonomous Work Completion Rate` after Business Autonomy Index. Show planned tasks, completed automatically, blocked, failed, and success rate.
 - Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
 - Include budget status only as operating proof: daily limit, monthly limit, active campaign status, and whether spend is verified. Do not imply spend occurred unless verified.
-- Include learning only from `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`. If learning is pending because attribution is missing, say that directly.
+- Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`. If learning is pending because attribution is missing, say that directly.
+- Include promotion only from `promotion_brain` and `budget_guard`. If Budget Guard blocks campaign creation, report the failed rule and next automatic retry.
+- Use `monitoring` for health status, last successful run, next scheduled run, and blocking issues. Do not invent monitoring status.
 - Include `Self-Evaluation` near the end. Answer only these five questions from `self_evaluation`: measurable business value, evidence, biggest positive decision, wrong decision, tomorrow's change.
 - Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.

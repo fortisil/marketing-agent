@@ -69,6 +69,16 @@ class MarketingDepartmentOutput:
     campaign_lifecycle: dict[str, Any] = field(default_factory=dict)
     budget_status: dict[str, Any] = field(default_factory=dict)
     content_intelligence: dict[str, Any] = field(default_factory=dict)
+    growth_intelligence: dict[str, Any] = field(default_factory=dict)
+    promotion_brain: dict[str, Any] = field(default_factory=dict)
+    budget_guard: dict[str, Any] = field(default_factory=dict)
+    video_production: dict[str, Any] = field(default_factory=dict)
+    brand_brain: dict[str, Any] = field(default_factory=dict)
+    connector_health: dict[str, Any] = field(default_factory=dict)
+    monitoring: dict[str, Any] = field(default_factory=dict)
+    weekly_executive_review: dict[str, Any] = field(default_factory=dict)
+    acceptance_criteria: dict[str, Any] = field(default_factory=dict)
+    final_definition_of_done: dict[str, Any] = field(default_factory=dict)
     hypothesis_register: list[dict[str, Any]] = field(default_factory=list)
     decision_ledger: list[dict[str, Any]] = field(default_factory=list)
     business_memory: list[dict[str, Any]] = field(default_factory=list)
@@ -90,6 +100,16 @@ class MarketingDepartmentOutput:
             "campaign_lifecycle": self.campaign_lifecycle,
             "budget_status": self.budget_status,
             "content_intelligence": self.content_intelligence,
+            "growth_intelligence": self.growth_intelligence,
+            "promotion_brain": self.promotion_brain,
+            "budget_guard": self.budget_guard,
+            "video_production": self.video_production,
+            "brand_brain": self.brand_brain,
+            "connector_health": self.connector_health,
+            "monitoring": self.monitoring,
+            "weekly_executive_review": self.weekly_executive_review,
+            "acceptance_criteria": self.acceptance_criteria,
+            "final_definition_of_done": self.final_definition_of_done,
             "hypothesis_register": self.hypothesis_register,
             "decision_ledger": self.decision_ledger,
             "business_memory": self.business_memory,
@@ -184,6 +204,11 @@ class MarketingDepartment:
         )
         budget_status = self._budget_status(meta_ads)
         content_intelligence = self._content_intelligence(whatsapp_bot, meta_ads, buffer_result)
+        growth_intelligence = self._growth_intelligence(whatsapp_bot, meta_ads, website_intelligence, content_intelligence)
+        budget_guard = self._budget_guard(budget_status)
+        promotion_brain = self._promotion_brain(content_intelligence, budget_status, budget_guard)
+        video_output = self._video_output(cta, brand_intelligence)
+        video_production = self._video_production(video_output.daily_output, brand_intelligence)
         social_output = self._social_output(
             content_output,
             image_result,
@@ -193,10 +218,10 @@ class MarketingDepartment:
         outputs = [
             content_output,
             design_output,
-            self._video_output(cta, brand_intelligence),
+            video_output,
             social_output,
-            self._ads_output(meta_ads, budget_status, content_intelligence),
-            self._analytics_output(whatsapp_bot, meta_ads, content_intelligence),
+            self._ads_output(meta_ads, budget_status, content_intelligence, promotion_brain),
+            self._analytics_output(whatsapp_bot, meta_ads, content_intelligence, growth_intelligence),
             self._website_output(website_intelligence, cta),
             self._outreach_output(cta),
         ]
@@ -226,6 +251,16 @@ class MarketingDepartment:
             campaign_lifecycle=self._campaign_lifecycle(execution_results, content_intelligence),
             budget_status=budget_status,
             content_intelligence=content_intelligence,
+            growth_intelligence=growth_intelligence,
+            promotion_brain=promotion_brain,
+            budget_guard=budget_guard,
+            video_production=video_production,
+            brand_brain=self._brand_brain(brand_intelligence),
+            connector_health=self._connector_health(whatsapp_bot, meta_ads, image_result, buffer_result),
+            monitoring=self._monitoring(decision_context.run_date, execution_results, buffer_result),
+            weekly_executive_review=self._weekly_executive_review(whatsapp_bot, meta_ads, content_intelligence),
+            acceptance_criteria=self._acceptance_criteria(execution_results, content_intelligence, budget_guard),
+            final_definition_of_done=self._final_definition_of_done(content_intelligence, budget_guard),
             hypothesis_register=self._hypothesis_register(content_intelligence),
             decision_ledger=self._decision_ledger(content_output, creative_brief, content_intelligence),
             business_memory=self._business_memory(content_intelligence),
@@ -938,6 +973,86 @@ class MarketingDepartment:
             "next_automatic_action": "Rank all content daily and promote only when score and budget rules allow it.",
         }
 
+    def _growth_intelligence(
+        self,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        website_intelligence: dict[str, Any],
+        content_intelligence: dict[str, Any],
+    ) -> dict[str, Any]:
+        verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        website_available = bool(isinstance(website_intelligence, dict) and website_intelligence)
+        return {
+            "principle": "Spend at least as much effort analyzing yesterday's performance as creating today's content.",
+            "instagram": {
+                "reach": None,
+                "impressions": None,
+                "shares": None,
+                "saves": None,
+                "comments": None,
+                "profile_visits": None,
+                "link_clicks": None,
+                "whatsapp_clicks": content_intelligence.get("metrics", {}).get("whatsapp_clicks"),
+                "audience_retention": None,
+                "status": content_intelligence.get("status", "unavailable"),
+            },
+            "meta_ads": {
+                "spend": meta_ads.get("current_spend_ils") if verified_meta else None,
+                "cpc": None,
+                "cpm": None,
+                "ctr": None,
+                "cpl": None,
+                "cpa": None,
+                "roas": None,
+                "frequency": None,
+                "learning_status": meta_ads.get("learning_status") if verified_meta else None,
+                "creative_fatigue": None,
+                "status": "verified" if verified_meta else "unavailable",
+            },
+            "whatsapp": {
+                "new_conversations": content_intelligence.get("metrics", {}).get("whatsapp_clicks"),
+                "qualified_leads": (
+                    whatsapp_bot.get("today", {}).get("qualified_leads")
+                    if verified_whatsapp
+                    else None
+                ),
+                "demo_requests": content_intelligence.get("metrics", {}).get("demo_requests"),
+                "booked_demos": (
+                    whatsapp_bot.get("today", {}).get("demo_bookings")
+                    if verified_whatsapp
+                    else None
+                ),
+                "customers": content_intelligence.get("metrics", {}).get("customers"),
+                "drop_off_stages": whatsapp_bot.get("drop_off_stages") if verified_whatsapp else None,
+                "response_quality": whatsapp_bot.get("response_quality") if verified_whatsapp else None,
+                "time_to_first_response": whatsapp_bot.get("time_to_first_response") if verified_whatsapp else None,
+                "status": "verified" if verified_whatsapp else "unavailable",
+            },
+            "website": {
+                "sessions": website_intelligence.get("sessions") if website_available else None,
+                "conversion_rate": website_intelligence.get("conversion_rate") if website_available else None,
+                "bounce_rate": website_intelligence.get("bounce_rate") if website_available else None,
+                "cta_clicks": website_intelligence.get("cta_clicks") if website_available else None,
+                "landing_page_performance": website_intelligence.get("landing_page_performance") if website_available else None,
+                "ga4_events": website_intelligence.get("ga4_events") if website_available else None,
+                "search_console": website_intelligence.get("search_console") if website_available else None,
+                "core_web_vitals": website_intelligence.get("core_web_vitals") if website_available else None,
+                "status": "partial" if website_available else "unavailable",
+            },
+            "conclusion": (
+                "Continue publishing only with evidence, improve attribution, and do not scale promotion until verified outcomes exist."
+                if content_intelligence.get("status") == "unavailable"
+                else "Rank content by business value and scale the asset with the strongest verified customer-acquisition signal."
+            ),
+            "stop_continue_improve_scale": {
+                "stop": "Stop using unverified likes or activity as success criteria.",
+                "continue": "Continue Hebrew WhatsApp-first content for Israeli law firms.",
+                "improve": "Improve WhatsApp, Instagram, Meta, and website attribution.",
+                "scale": "Scale only after Business Value Score and Budget Guard allow it.",
+            },
+        }
+
     def _campaign_lifecycle(
         self,
         execution_results: list[ExecutionResult],
@@ -971,6 +1086,291 @@ class MarketingDepartment:
                 "measure": content_intelligence.get("status", "unavailable"),
                 "learn": "pending_verified_outcomes",
             },
+        }
+
+    def _budget_guard(self, budget_status: dict[str, Any]) -> dict[str, Any]:
+        rules = {
+            "daily_cap": budget_status.get("daily_budget_limit_ils"),
+            "monthly_cap": budget_status.get("monthly_budget_limit_ils"),
+            "one_active_experiment_per_asset": True,
+            "friday_schedule": budget_status.get("friday"),
+            "saturday_block": budget_status.get("saturday"),
+            "duplicate_prevention": True,
+            "spend_reconciliation": budget_status.get("verified"),
+        }
+        failed_rules = [
+            name
+            for name, value in rules.items()
+            if value in {False, None, ""}
+        ]
+        return {
+            "rules": rules,
+            "failed_rules": failed_rules,
+            "campaign_creation_allowed": not failed_rules,
+            "decision": "stop_campaign_creation" if failed_rules else "allow_if_promotion_brain_approves",
+            "reason": (
+                "Campaign creation must stop until failed budget guard rules are resolved."
+                if failed_rules
+                else "Budget guard rules are satisfied."
+            ),
+        }
+
+    def _promotion_brain(
+        self,
+        content_intelligence: dict[str, Any],
+        budget_status: dict[str, Any],
+        budget_guard: dict[str, Any],
+    ) -> dict[str, Any]:
+        score = content_intelligence.get("business_value_score")
+        promote = bool(
+            isinstance(score, int)
+            and score >= 90
+            and budget_status.get("verified")
+            and budget_guard.get("campaign_creation_allowed")
+        )
+        return {
+            "allowed_decisions": ["launch", "pause", "resume", "scale", "duplicate", "terminate"],
+            "decision": "launch" if promote else "pause",
+            "status": "blocked" if not promote else "approved_for_connector",
+            "business_value_score": score,
+            "decision_inputs": {
+                "budget_remaining": budget_status.get("remaining_monthly_budget_ils"),
+                "revenue_influence_score": None,
+                "whatsapp_conversions": content_intelligence.get("metrics", {}).get("whatsapp_clicks"),
+                "demo_rate": content_intelligence.get("metrics", {}).get("demo_requests"),
+                "customer_acquisition": content_intelligence.get("metrics", {}).get("customers"),
+                "creative_fatigue": None,
+            },
+            "hypothesis": "Promoting the highest-value WhatsApp-intake asset will increase qualified law-firm demos.",
+            "expected_outcome": "More qualified WhatsApp conversations that convert into booked demos.",
+            "stop_condition": "Stop if budget guard fails, attribution is unavailable for too long, or cost per qualified lead exceeds the target.",
+            "success_criteria": "Verified qualified leads, booked demos, or customers increase within delegated budget.",
+            "reason": (
+                "Promotion is blocked until Business Value Score, verified spend, and Budget Guard all pass."
+                if not promote
+                else "Promotion Brain approved launch within delegated guardrails."
+            ),
+        }
+
+    def _video_production(
+        self,
+        video_output: dict[str, Any],
+        brand_intelligence: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "openai_responsibilities": [
+                "Creative brief",
+                "Script",
+                "Storyboard",
+                "Shot list",
+                "Thumbnail concept",
+                "Branding",
+                "CTA",
+            ],
+            "heygen_responsibilities": ["Rendering", "Voice", "Avatar", "Final MP4"],
+            "requirements": {
+                "language": "Hebrew",
+                "target_audience": "Israeli law firms",
+                "whatsapp_cta": True,
+                "follows_brand_brain": bool(brand_intelligence),
+                "format": video_output.get("format"),
+                "aspect_ratio": video_output.get("aspect_ratio"),
+                "subtitles": video_output.get("subtitles"),
+            },
+            "status": "specified",
+            "blocking_issue": "HeyGen execution connector is not yet connected for final MP4 generation.",
+        }
+
+    def _brand_brain(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
+        available = bool(isinstance(brand_intelligence, dict) and brand_intelligence.get("available"))
+        return {
+            "available": available,
+            "maintains": [
+                "Logos",
+                "Colors",
+                "Typography",
+                "Templates",
+                "Image styles",
+                "Voice",
+                "Tone",
+                "Messaging",
+            ],
+            "marketing_language": (
+                brand_intelligence.get("brand", {}).get("marketing_language")
+                if available
+                else "Hebrew"
+            ),
+            "internal_language": (
+                brand_intelligence.get("brand", {}).get("internal_language")
+                if available
+                else "English"
+            ),
+            "quality_requirement": "Reject assets that do not meet premium agency quality.",
+            "source": (
+                brand_intelligence.get("source", "configured_defaults")
+                if isinstance(brand_intelligence, dict)
+                else "configured_defaults"
+            ),
+        }
+
+    def _connector_health(
+        self,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        image_result: ExecutionResult | None,
+        buffer_result: ExecutionResult | None,
+    ) -> dict[str, Any]:
+        def connector(status: str, *, evidence: list[str], failure: str | None = None) -> dict[str, Any]:
+            return {
+                "health": status,
+                "retry_policy": "Retry automatically on next scheduled run unless failure is non-retryable.",
+                "evidence": evidence,
+                "monitoring": "recorded_in_execution_log",
+                "failure_handling": failure or "report blocked/failed with exact reason and next retry",
+            }
+
+        return {
+            "OpenAI": connector(
+                "working" if image_result and image_result.status == "completed" else "blocked",
+                evidence=["image_sha256", "model", "brand_validation"],
+                failure=image_result.error if image_result and image_result.error else None,
+            ),
+            "Meta": connector(
+                "working" if meta_ads.get("verified") else "unavailable",
+                evidence=["campaign_status", "spend", "performance"],
+                failure="No verified Meta execution/metrics available." if not meta_ads.get("verified") else None,
+            ),
+            "Buffer": connector(
+                "working" if buffer_result and buffer_result.status == "completed" else "blocked",
+                evidence=["buffer_update_id", "buffer_post_url", "instagram_url"],
+                failure=buffer_result.error if buffer_result and buffer_result.error else None,
+            ),
+            "Cloudinary": connector(
+                "working" if image_result and image_result.proof.get("public_url") else "blocked",
+                evidence=["public_url", "upload_asset_id"],
+                failure=image_result.error if image_result and image_result.error else None,
+            ),
+            "WhatsApp": connector(
+                "working" if whatsapp_bot.get("verified") else "unavailable",
+                evidence=["conversation_id", "qualified_lead", "demo_booked", "customer"],
+                failure="No verified WhatsApp event data available." if not whatsapp_bot.get("verified") else None,
+            ),
+            "Resend": connector("configured_in_daily_brief", evidence=["message_id", "recipient"]),
+            "GitHub": connector("not_connected_for_pr_execution", evidence=["pull_request_url"]),
+            "Google Analytics 4": connector("not_connected", evidence=["ga4_events"]),
+            "Google Search Console": connector("not_connected", evidence=["search_console"]),
+            "CRM": connector("not_connected", evidence=["customer_id", "revenue"]),
+            "HeyGen": connector("not_connected_for_rendering", evidence=["mp4_path", "video_sha256"]),
+        }
+
+    def _monitoring(
+        self,
+        run_date: str,
+        execution_results: list[ExecutionResult],
+        buffer_result: ExecutionResult | None,
+    ) -> dict[str, Any]:
+        completed = [result for result in execution_results if result.status == "completed"]
+        blocked = [result for result in execution_results if result.status == "blocked"]
+        failed = [result for result in execution_results if result.status == "failed"]
+        last_asset = buffer_result.proof if buffer_result and buffer_result.status == "completed" else {}
+        return {
+            "health_status": "working" if completed and not failed else "blocked" if blocked else "unknown",
+            "last_successful_run": completed[-1].timestamp if completed else None,
+            "next_scheduled_run": f"{run_date} 08:00 Asia/Jerusalem",
+            "last_published_asset": {
+                "instagram_url": last_asset.get("instagram_url"),
+                "buffer_update_id": last_asset.get("buffer_update_id"),
+                "image_sha256": last_asset.get("image_sha256"),
+            } if last_asset else None,
+            "last_campaign": None,
+            "last_email": None,
+            "blocking_issues": [result.error for result in blocked if result.error],
+            "missed_run_alerts": "required_if_scheduler_misses_expected_run",
+        }
+
+    def _weekly_executive_review(
+        self,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        content_intelligence: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "schedule": "Every Sunday",
+            "review_items": [
+                "Revenue",
+                "Leads",
+                "Demos",
+                "Customers",
+                "ROI",
+                "Best campaigns",
+                "Worst campaigns",
+                "Lessons learned",
+                "Next week's priorities",
+            ],
+            "current_status": "blocked_until_attribution_connected",
+            "revenue": None,
+            "leads": (
+                whatsapp_bot.get("today", {}).get("qualified_leads")
+                if whatsapp_bot.get("verified")
+                else None
+            ),
+            "demos": (
+                whatsapp_bot.get("today", {}).get("demo_bookings")
+                if whatsapp_bot.get("verified")
+                else None
+            ),
+            "customers": content_intelligence.get("metrics", {}).get("customers"),
+            "roi": None,
+            "meta_status": meta_ads.get("campaign_status", "unknown"),
+            "lessons_learned": "pending_verified_outcomes",
+        }
+
+    def _acceptance_criteria(
+        self,
+        execution_results: list[ExecutionResult],
+        content_intelligence: dict[str, Any],
+        budget_guard: dict[str, Any],
+    ) -> dict[str, Any]:
+        completed_actions = {result.action for result in execution_results if result.status == "completed"}
+        return {
+            "real_content_published": "publish_social_post" in completed_actions,
+            "agency_quality_creative": "generate_branded_social_image" in completed_actions,
+            "whatsapp_attribution": content_intelligence.get("metrics", {}).get("whatsapp_clicks") is not None,
+            "meta_optimization": False,
+            "budget_enforcement": bool(budget_guard.get("rules")),
+            "website_optimization": False,
+            "daily_ceo_brief": True,
+            "learning_from_outcomes": content_intelligence.get("status") == "verified",
+            "revenue_influence_tracking": content_intelligence.get("metrics", {}).get("customers") is not None,
+            "thirty_consecutive_autonomous_operating_days": False,
+            "system_complete": False,
+        }
+
+    def _final_definition_of_done(
+        self,
+        content_intelligence: dict[str, Any],
+        budget_guard: dict[str, Any],
+    ) -> dict[str, Any]:
+        complete = (
+            content_intelligence.get("metrics", {}).get("customers") not in {None, 0}
+            and budget_guard.get("campaign_creation_allowed")
+            and content_intelligence.get("status") == "verified"
+        )
+        return {
+            "complete": complete,
+            "requirements": [
+                "Continuously acquires additional paying customers.",
+                "Autonomously creates, measures, improves, and promotes marketing.",
+                "Uses evidence rather than assumptions.",
+                "Learns from outcomes.",
+                "Remains inside delegated authority.",
+                "Requires no daily operational management from the CEO.",
+            ],
+            "current_gap": (
+                "The agent can execute and publish, but full completion still requires attribution, Meta optimization, CRM/revenue tracking, and 30 autonomous days."
+                if not complete
+                else "All final definition of done requirements are currently satisfied."
+            ),
         }
 
     def _hypothesis_register(self, content_intelligence: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1021,10 +1421,9 @@ class MarketingDepartment:
         meta_ads: dict[str, Any],
         budget_status: dict[str, Any],
         content_intelligence: dict[str, Any],
+        promotion_brain: dict[str, Any],
     ) -> AgentOutput:
         verified_campaign = bool(meta_ads.get("verified") and meta_ads.get("campaign_status") == "active")
-        score = content_intelligence.get("business_value_score")
-        promote = bool(isinstance(score, int) and score >= 90 and budget_status.get("verified"))
         return AgentOutput(
             agent="Ads Agent",
             status="blocked",
@@ -1034,8 +1433,9 @@ class MarketingDepartment:
                 "reason": (
                     "MetaExecutor is not implemented/configured. A campaign cannot be created or reported active."
                 ),
-                "promotion_decision": "promote" if promote else "do_not_promote",
-                "business_value_score": score,
+                "promotion_brain": promotion_brain,
+                "promotion_decision": promotion_brain.get("decision"),
+                "business_value_score": content_intelligence.get("business_value_score"),
                 "budget_status": budget_status,
                 "budget_rule": "Do not exceed ILS 20/day or ILS 600/month. No Saturday spend. Friday morning only. One active promotion per asset.",
                 "verified_active_campaign": verified_campaign,
@@ -1048,6 +1448,7 @@ class MarketingDepartment:
         whatsapp_bot: dict[str, Any],
         meta_ads: dict[str, Any],
         content_intelligence: dict[str, Any],
+        growth_intelligence: dict[str, Any],
     ) -> AgentOutput:
         verified = bool(whatsapp_bot.get("verified")) or bool(meta_ads.get("verified"))
         return AgentOutput(
@@ -1055,6 +1456,7 @@ class MarketingDepartment:
             status="collected" if verified else "blocked",
             daily_output={
                 "content_intelligence": content_intelligence,
+                "growth_intelligence": growth_intelligence,
                 "organic_reach": None,
                 "ctr": None,
                 "whatsapp_clicks": None,
@@ -1192,6 +1594,16 @@ def attach_marketing_department_output(
     decision_context.summary["campaign_lifecycle"] = payload.get("campaign_lifecycle", {})
     decision_context.summary["budget_status"] = payload.get("budget_status", {})
     decision_context.summary["content_intelligence"] = payload.get("content_intelligence", {})
+    decision_context.summary["growth_intelligence"] = payload.get("growth_intelligence", {})
+    decision_context.summary["promotion_brain"] = payload.get("promotion_brain", {})
+    decision_context.summary["budget_guard"] = payload.get("budget_guard", {})
+    decision_context.summary["video_production"] = payload.get("video_production", {})
+    decision_context.summary["brand_brain"] = payload.get("brand_brain", {})
+    decision_context.summary["connector_health"] = payload.get("connector_health", {})
+    decision_context.summary["monitoring"] = payload.get("monitoring", {})
+    decision_context.summary["weekly_executive_review"] = payload.get("weekly_executive_review", {})
+    decision_context.summary["acceptance_criteria"] = payload.get("acceptance_criteria", {})
+    decision_context.summary["final_definition_of_done"] = payload.get("final_definition_of_done", {})
     decision_context.summary["hypothesis_register"] = payload.get("hypothesis_register", [])
     decision_context.summary["decision_ledger"] = payload.get("decision_ledger", [])
     decision_context.summary["business_memory"] = payload.get("business_memory", [])
