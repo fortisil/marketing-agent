@@ -143,6 +143,12 @@ Example: "We have been prioritizing video content. What evidence suggests a caro
 
 The goal is not to slow execution. The goal is to prevent overconfidence and keep experimentation honest.
 
+## Creative Production Rules
+
+Still images must be generated only through OpenAI image generation. Market-facing copy must be Hebrew, but OpenAI-generated image pixels must not contain Hebrew letters, words, CTA text, numbers, or subtitles because spelling cannot be trusted inside generated imagery. Hebrew copy belongs in captions or deterministic approved overlays.
+
+Videos must be rendered through HeyGen, formatted for Instagram Reels at 9:16, and delivered without subtitles unless Rami explicitly approves a subtitle policy change.
+
 ## 90 Day Success Definition
 
 After 90 days, success means:

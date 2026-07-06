@@ -448,9 +448,16 @@ class MarketingDepartment:
             daily_output={
                 "asset_specs": ["Instagram Reel cover", "Story frame", "thumbnail"],
                 "brand_source": "Brand Brain" if brand_intelligence else "configured brand defaults",
+                "image_provider": execution_task.payload["provider"],
+                "image_model": execution_task.payload["model"],
                 "image_prompt": execution_task.payload["prompt"],
+                "text_policy": execution_task.payload["text_policy"],
+                "language_policy": execution_task.payload["language_policy"],
                 "alt_text": execution_task.payload["alt_text"],
-                "guardrail": "Do not publish creative that conflicts with the approved logo or brand colors.",
+                "guardrail": (
+                    "Use OpenAI for still images, keep Hebrew in captions, and do not publish "
+                    "AI-rendered Hebrew text inside generated image pixels."
+                ),
                 "executed": bool(result and result.status == "completed"),
                 "image_path": result.proof.get("image_path") if result else None,
                 "worker_id": task.assigned_worker_id,
@@ -469,11 +476,12 @@ class MarketingDepartment:
         content = content_output.daily_output
         brand_assets = self._brand_assets(brand_intelligence)
         prompt = (
-            "ChatBot2U branded Instagram visual for Israeli law firms. "
+            "OpenAI-generated ChatBot2U branded Instagram visual for Hebrew-speaking Israeli law firms. "
             f"Theme: {content.get('theme')}. "
-            "Show WhatsApp client intake becoming a structured qualified demo flow. "
-            "Use approved ChatBot2U colors, clean B2B SaaS composition, practical legal-office context, "
-            "clear Hebrew WhatsApp demo CTA, approved logo usage only, no undifferentiated startup art."
+            "Show WhatsApp client intake becoming a structured qualified demo flow using abstract UI shapes, "
+            "simple icons, and practical legal-office context. Use approved ChatBot2U colors and clean B2B SaaS composition. "
+            "No text, no letters, no words, no Hebrew characters, no numbers, no CTA text, no subtitles, and no logo text inside the generated image. "
+            "All Hebrew copy and WhatsApp CTA must appear only in the Buffer caption or in a deterministic approved overlay outside the image generator."
         )
         execution_task = ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-image-{run_date}",
@@ -485,10 +493,14 @@ class MarketingDepartment:
             dry_run=self.execution_dry_run,
             payload={
                 "run_date": run_date,
+                "provider": "openai",
+                "model": self.openai_image_model,
                 "prompt": prompt,
                 "size": "1024x1024",
                 "brand_assets": brand_assets,
                 "require_public_url": True,
+                "text_policy": "no_model_rendered_text",
+                "language_policy": "Hebrew caption only; no generated Hebrew text inside image",
                 "alt_text": "ChatBot2U turns WhatsApp inquiries for law firms into structured demo-ready conversations.",
             },
         )
@@ -523,6 +535,13 @@ class MarketingDepartment:
             status="prepared",
             daily_output={
                 "language": policy["default_post_language"],
+                "renderer": "HeyGen",
+                "format": "Instagram Reels",
+                "aspect_ratio": "9:16",
+                "resolution": "1080x1920",
+                "subtitles": False,
+                "captions": "none",
+                "safe_area": "Keep presenter and product visuals inside the Instagram Reels safe area.",
                 "heygen_script": (
                     "משרדי עורכי דין מאבדים זמן על אותן שאלות פתיחה שוב ושוב. "
                     "ChatBot2U הופך פניות WhatsApp לשיחות מסודרות שמובילות לדמו כשיר. "

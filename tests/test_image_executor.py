@@ -17,8 +17,13 @@ def _task(dry_run: bool = False) -> ExecutionTask:
         action="generate_branded_social_image",
         payload={
             "run_date": "2026-07-05",
-            "prompt": "ChatBot2U branded image using approved colors and logo.",
+            "prompt": (
+                "OpenAI-generated ChatBot2U branded image using approved colors and logo. "
+                "No text, no letters, no words, no Hebrew characters, no CTA text."
+            ),
             "brand_assets": {"colors": ["#111827"], "logo": "logo.svg"},
+            "text_policy": "no_model_rendered_text",
+            "language_policy": "Hebrew caption only; no generated Hebrew text inside image",
         },
         delegated_authority_used="marketing.generate_images",
         initiative="Acquire first paying law firms",
@@ -92,6 +97,30 @@ class ImageExecutorTests(unittest.TestCase):
         self.assertEqual(result.error, "Brand validation failed.")
         self.assertEqual(client.calls, [])
 
+    def test_brand_validation_rejects_generated_hebrew_text_requests(self) -> None:
+        client = FakeImageClient(b"png")
+        bad_task = _task()
+        bad_task.payload["prompt"] = (
+            "ChatBot2U branded Instagram visual with clear Hebrew WhatsApp demo CTA "
+            "and text overlay using approved colors and logo."
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = ImageExecutor(
+                api_key="key",
+                assets_root=Path(tmpdir),
+                timezone="Asia/Jerusalem",
+                enabled=True,
+                dry_run=False,
+                client=client,
+            ).execute(bad_task)
+
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.error, "Brand validation failed.")
+        errors = result.result["brand_validation_errors"]
+        self.assertTrue(any("hebrew whatsapp demo cta" in error for error in errors))
+        self.assertTrue(any("text overlay" in error for error in errors))
+        self.assertEqual(client.calls, [])
+
     def test_success_stores_png_and_returns_proof(self) -> None:
         image_bytes = b"fake-png"
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -110,6 +139,8 @@ class ImageExecutorTests(unittest.TestCase):
 
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.proof["brand_validation"], "passed")
+        self.assertEqual(result.proof["provider"], "openai")
+        self.assertEqual(result.proof["text_policy"], "no_model_rendered_text")
         self.assertIn("sha256", result.artifact_ids)
 
     def test_public_url_required_blocks_without_upload_provider(self) -> None:

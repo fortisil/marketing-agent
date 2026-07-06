@@ -29,8 +29,9 @@ The AI autonomously:
 - Decides whether content should be published.
 - Selects the best format.
 - Writes Hebrew content.
-- Generates branded images.
-- Generates branded videos.
+- Generates branded still images only with OpenAI image generation.
+- Keeps Hebrew CTAs in captions or deterministic approved overlays, not model-rendered image text.
+- Generates branded videos with HeyGen in Instagram 9:16 format without subtitles.
 - Includes the mandatory WhatsApp CTA.
 - Schedules publication.
 - Publishes.

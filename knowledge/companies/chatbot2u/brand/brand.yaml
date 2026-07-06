@@ -56,11 +56,23 @@ image_generation:
   provider: openai
   model: gpt-image-1
   style: chatbot2u
+  text_policy: no_model_rendered_text
+  language_policy: Hebrew captions only; no generated Hebrew text inside images
+video_generation:
+  provider: heygen
+  format: Instagram Reels
+  aspect_ratio: "9:16"
+  resolution: "1080x1920"
+  subtitles: false
 rules:
   - Never guess branding when the Brand Library is available.
   - Use repository inference only as fallback for missing brand assets.
   - Every visual asset must use the official color palette or explain why an exception is needed.
   - Every marketing asset must include a clear WhatsApp path when appropriate.
+  - Still images must be generated only by OpenAI image generation.
+  - Do not ask image generation models to render Hebrew letters, words, CTAs, or subtitles.
+  - Hebrew marketing copy belongs in captions or deterministic approved overlays, not model-rendered image pixels.
+  - Videos must be rendered by HeyGen in Instagram 9:16 format without subtitles.
 asset_library:
   logos: assets/companies/chatbot2u/logos
   screenshots: assets/companies/chatbot2u/screenshots

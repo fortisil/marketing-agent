@@ -64,6 +64,7 @@ class BrandProvider:
             "brand": brand_config.get("brand", {}),
             "cta": brand_config.get("cta", {}),
             "image_generation": brand_config.get("image_generation", {}),
+            "video_generation": brand_config.get("video_generation", {}),
             "colors": colors,
             "logos": logos,
             "typography": brand_config.get("typography", {}),

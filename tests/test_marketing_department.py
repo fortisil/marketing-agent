@@ -128,6 +128,10 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(actions["Content Agent"]["result"]["whatsapp_link"], "https://wa.me/972559720244")
         self.assertIn("שלחו הודעה ל-WhatsApp", actions["Content Agent"]["result"]["cta"])
         self.assertNotIn("Book a demo", actions["Content Agent"]["result"]["cta"])
+        self.assertEqual(actions["Design Agent"]["result"]["image_provider"], "openai")
+        self.assertEqual(actions["Design Agent"]["result"]["text_policy"], "no_model_rendered_text")
+        self.assertIn("No text, no letters", actions["Design Agent"]["result"]["image_prompt"])
+        self.assertNotIn("clear Hebrew WhatsApp demo CTA", actions["Design Agent"]["result"]["image_prompt"])
         self.assertEqual(actions["Design Agent"]["status"], "blocked")
         self.assertEqual(actions["Social Agent"]["status"], "blocked")
         self.assertEqual(actions["Ads Agent"]["status"], "blocked")
@@ -161,6 +165,29 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("עורכי דין", content["hebrew_copy"])
         self.assertIn("https://wa.me/972559720244", content["cta"])
         self.assertNotIn("Book a demo", content["cta"])
+
+    def test_video_specs_use_heygen_without_subtitles_for_instagram_reels(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(_context())
+
+        video = {
+            item.agent: item.daily_output
+            for item in output.outputs
+        }["Video Agent"]
+
+        self.assertEqual(video["language"], "Hebrew")
+        self.assertEqual(video["renderer"], "HeyGen")
+        self.assertEqual(video["format"], "Instagram Reels")
+        self.assertEqual(video["aspect_ratio"], "9:16")
+        self.assertEqual(video["resolution"], "1080x1920")
+        self.assertFalse(video["subtitles"])
+        self.assertEqual(video["captions"], "none")
+        self.assertIn("שלחו הודעה ל-WhatsApp", video["heygen_script"])
 
     def test_marketing_department_attaches_to_decision_context(self) -> None:
         context = _context()

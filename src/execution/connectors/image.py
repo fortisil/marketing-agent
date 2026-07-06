@@ -44,6 +44,25 @@ class BrandValidator:
         for phrase in forbidden:
             if phrase in lowered:
                 failures.append(f"Forbidden brand phrase: {phrase}.")
+        forbidden_text_requests = [
+            "hebrew whatsapp demo cta",
+            "hebrew cta",
+            "text overlay",
+            "render text",
+            "include text",
+            "write text",
+            "words on image",
+            "letters",
+            "subtitles",
+            "caption in image",
+        ]
+        for phrase in forbidden_text_requests:
+            if f"no {phrase}" in lowered:
+                continue
+            if phrase in lowered:
+                failures.append(f"Forbidden generated text request: {phrase}.")
+        if "no text" not in lowered or "no letters" not in lowered:
+            failures.append("Image prompt must forbid model-rendered text and letters.")
         return not failures, failures
 
 
@@ -228,8 +247,11 @@ class ImageExecutor:
             "upload_provider": upload_provider,
             "upload_asset_id": upload_asset_id,
             "brand_validation": "passed",
+            "provider": "openai",
             "model": self.model,
             "size": str(task.payload.get("size") or self.size),
+            "text_policy": str(task.payload.get("text_policy") or "no_model_rendered_text"),
+            "language_policy": str(task.payload.get("language_policy") or ""),
         }
         return ExecutionResult.completed(
             task,
