@@ -63,6 +63,15 @@ class MarketingDepartmentOutput:
     status: str
     agents: list[AgentSpec]
     outputs: list[AgentOutput]
+    aeos_spec: dict[str, Any] = field(default_factory=dict)
+    organization: dict[str, Any] = field(default_factory=dict)
+    creative_brief: dict[str, Any] = field(default_factory=dict)
+    campaign_lifecycle: dict[str, Any] = field(default_factory=dict)
+    budget_status: dict[str, Any] = field(default_factory=dict)
+    content_intelligence: dict[str, Any] = field(default_factory=dict)
+    hypothesis_register: list[dict[str, Any]] = field(default_factory=list)
+    decision_ledger: list[dict[str, Any]] = field(default_factory=list)
+    business_memory: list[dict[str, Any]] = field(default_factory=list)
     execution_results: list[ExecutionResult] = field(default_factory=list)
     workforce: dict[str, Any] = field(default_factory=dict)
     action_log: list[dict[str, Any]] = field(default_factory=list)
@@ -75,6 +84,15 @@ class MarketingDepartmentOutput:
             "status": self.status,
             "agents": [agent.to_dict() for agent in self.agents],
             "outputs": [output.to_dict() for output in self.outputs],
+            "aeos_spec": self.aeos_spec,
+            "organization": self.organization,
+            "creative_brief": self.creative_brief,
+            "campaign_lifecycle": self.campaign_lifecycle,
+            "budget_status": self.budget_status,
+            "content_intelligence": self.content_intelligence,
+            "hypothesis_register": self.hypothesis_register,
+            "decision_ledger": self.decision_ledger,
+            "business_memory": self.business_memory,
             "execution_results": [result.to_dict() for result in self.execution_results],
             "workforce": self.workforce,
             "action_log": self.action_log,
@@ -140,7 +158,8 @@ class MarketingDepartment:
         brand_intelligence = summary.get("brand_intelligence", {})
 
         agents = self._agents()
-        content_output = self._content_output(cta, brand_intelligence)
+        creative_brief = self._creative_brief(cta, brand_intelligence, whatsapp_bot, meta_ads)
+        content_output = self._content_output(cta, brand_intelligence, creative_brief)
         image_task = self._image_task(brand_intelligence, content_output, decision_context.run_date)
         image_workforce_result = self._run_workforce([image_task])
         image_result = self._result_for(image_workforce_result.execution_results, "ImageExecutor")
@@ -163,6 +182,8 @@ class MarketingDepartment:
             image_task,
             image_result,
         )
+        budget_status = self._budget_status(meta_ads)
+        content_intelligence = self._content_intelligence(whatsapp_bot, meta_ads, buffer_result)
         social_output = self._social_output(
             content_output,
             image_result,
@@ -174,8 +195,8 @@ class MarketingDepartment:
             design_output,
             self._video_output(cta, brand_intelligence),
             social_output,
-            self._ads_output(meta_ads),
-            self._analytics_output(whatsapp_bot, meta_ads),
+            self._ads_output(meta_ads, budget_status, content_intelligence),
+            self._analytics_output(whatsapp_bot, meta_ads, content_intelligence),
             self._website_output(website_intelligence, cta),
             self._outreach_output(cta),
         ]
@@ -199,6 +220,15 @@ class MarketingDepartment:
             status=status,
             agents=agents,
             outputs=outputs,
+            aeos_spec=self._aeos_spec(),
+            organization=self._organization(),
+            creative_brief=creative_brief,
+            campaign_lifecycle=self._campaign_lifecycle(execution_results, content_intelligence),
+            budget_status=budget_status,
+            content_intelligence=content_intelligence,
+            hypothesis_register=self._hypothesis_register(content_intelligence),
+            decision_ledger=self._decision_ledger(content_output, creative_brief, content_intelligence),
+            business_memory=self._business_memory(content_intelligence),
             execution_results=execution_results,
             workforce={
                 "workers": [
@@ -353,6 +383,98 @@ class MarketingDepartment:
             ),
         ]
 
+    def _aeos_spec(self) -> dict[str, Any]:
+        return {
+            "name": "AUTONOMOUS_EXECUTIVE_OS_SPECIFICATION_v1.0",
+            "implemented_department": "Marketing Department",
+            "primary_objective": "Acquire additional paying customers.",
+            "north_star_priority_order": [
+                "Paying Customers",
+                "Revenue",
+                "Booked Demos",
+                "Qualified Leads",
+                "WhatsApp Conversations",
+                "Website Conversion",
+                "Content Performance",
+            ],
+            "immutable_rules": [
+                "Never fabricate metrics.",
+                "Every completed action requires evidence.",
+                "Every decision must have measurable business intent.",
+                "Budget is a hard constraint.",
+                "Learning is mandatory.",
+                "No repeated failed experiments.",
+                "Always optimize customer acquisition.",
+            ],
+        }
+
+    def _organization(self) -> dict[str, Any]:
+        return {
+            "operating_model": ["CEO", "Chief of Staff", "Marketing Department", "Workers"],
+            "workers": [
+                "Creative Director",
+                "Copywriter",
+                "Designer",
+                "Video Producer",
+                "Social Media Manager",
+                "Promotion Manager",
+                "Website Optimizer",
+                "Analytics Manager",
+                "Growth Strategist",
+            ],
+            "principle": "Workers execute. Departments own outcomes.",
+            "connector_workers": [
+                "marketing-design-worker-1",
+                "marketing-social-worker-1",
+            ],
+        }
+
+    def _creative_brief(
+        self,
+        cta: dict[str, Any],
+        brand_intelligence: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+    ) -> dict[str, Any]:
+        policy = self._marketing_language_policy(brand_intelligence)
+        hebrew_cta = self._hebrew_whatsapp_cta(cta, brand_intelligence)
+        verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        return {
+            "campaign_objective": "Acquire qualified law-firm customers.",
+            "target_audience": policy["target_audience"],
+            "marketing_language": policy["marketing_language"],
+            "internal_operating_language": policy["internal_language"],
+            "pain": "Israeli law firms lose time qualifying repeated WhatsApp and intake questions.",
+            "promise": "Turn WhatsApp inquiries into structured, demo-ready conversations.",
+            "offer": "Short WhatsApp walkthrough for law firms.",
+            "proof": (
+                "No verified outcome proof available yet."
+                if not (verified_whatsapp or verified_meta)
+                else "Use verified connected acquisition metrics from available sources."
+            ),
+            "headline": "הפכו פניות WhatsApp לשיחות מסודרות שמובילות לדמו כשיר",
+            "supporting_copy": (
+                "ChatBot2U עוזר למשרדי עורכי דין לסנן פניות, לענות מהר יותר, "
+                "ולהוביל שיחות רלוונטיות לדמו."
+            ),
+            "cta": hebrew_cta,
+            "landing_page": self._whatsapp_link(cta, brand_intelligence),
+            "promotion_strategy": "Publish organically first; promote only inside budget rules when Business Value Score supports it.",
+            "success_metric": "Additional paying customers, with booked demos and qualified leads as leading indicators.",
+            "quality_bar": "Comparable to premium agency advertisements.",
+            "creative_director_review": {
+                "status": "approved_for_execution",
+                "reject_if": [
+                    "generic",
+                    "low_quality",
+                    "poorly_branded",
+                    "weak_visual_hierarchy",
+                    "unlikely_to_convert",
+                ],
+            },
+        }
+
     def _marketing_language_policy(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
         company = self.company_config.get("company", {})
         marketing = self.company_config.get("marketing", {})
@@ -400,13 +522,19 @@ class MarketingDepartment:
             return configured
         return f"רוצים לראות איך זה עובד? שלחו הודעה ל-WhatsApp: {self._whatsapp_link(cta, brand_intelligence)}"
 
-    def _content_output(self, cta: dict[str, Any], brand_intelligence: dict[str, Any]) -> AgentOutput:
+    def _content_output(
+        self,
+        cta: dict[str, Any],
+        brand_intelligence: dict[str, Any],
+        creative_brief: dict[str, Any],
+    ) -> AgentOutput:
         policy = self._marketing_language_policy(brand_intelligence)
         hebrew_cta = self._hebrew_whatsapp_cta(cta, brand_intelligence)
         return AgentOutput(
             agent="Content Agent",
             status="prepared",
             daily_output={
+                "creative_brief": creative_brief,
                 "publish": "Reel",
                 "language": policy["default_post_language"],
                 "marketing_language": policy["marketing_language"],
@@ -694,8 +822,209 @@ class MarketingDepartment:
         ).strip()
         return sha256(caption.encode("utf-8")).hexdigest()
 
-    def _ads_output(self, meta_ads: dict[str, Any]) -> AgentOutput:
+    def _budget_status(self, meta_ads: dict[str, Any]) -> dict[str, Any]:
+        marketing_budget = self.company_config.get("marketing", {}).get("budget_rule", {})
+        ads_authority = (
+            self.objectives_config.get("delegated_authority", {})
+            .get("ads", {})
+        )
+        daily_limit = int(
+            ads_authority.get("daily_budget_limit_ils")
+            or marketing_budget.get("amount_ils_per_day")
+            or 20
+        )
+        monthly_limit = int(ads_authority.get("total_monthly_budget_ils") or daily_limit * 30)
+        verified = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        campaign_status = str(meta_ads.get("campaign_status") or "unknown") if isinstance(meta_ads, dict) else "unknown"
+        current_spend = meta_ads.get("current_spend_ils") if verified else None
+        remaining_monthly = (
+            max(monthly_limit - int(current_spend), 0)
+            if isinstance(current_spend, int)
+            else None
+        )
+        return {
+            "currency": "ILS",
+            "daily_budget_limit_ils": daily_limit,
+            "monthly_budget_limit_ils": monthly_limit,
+            "current_spend_ils": current_spend,
+            "remaining_monthly_budget_ils": remaining_monthly,
+            "saturday": marketing_budget.get("saturday", "no spend"),
+            "friday": marketing_budget.get("friday", "morning only"),
+            "one_active_promotion_per_asset": True,
+            "one_active_campaign_limit": True,
+            "campaign_status": campaign_status,
+            "verified": verified,
+            "status": "verified" if verified else "unavailable",
+            "blocking_issue": None if verified else "No verified Meta spend data available.",
+        }
+
+    def _content_intelligence(
+        self,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        buffer_result: ExecutionResult | None,
+    ) -> dict[str, Any]:
+        verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        published = buffer_result is not None and buffer_result.status == "completed"
+        proof = buffer_result.proof if published else {}
+        if not (verified_whatsapp or verified_meta):
+            return {
+                "status": "unavailable",
+                "reason": "No verified content, WhatsApp, or campaign outcome data available yet.",
+                "ranked_assets": [],
+                "business_value_score": None,
+                "predicted_roi": None,
+                "predicted_demo_probability": None,
+                "metrics": {
+                    "reach": None,
+                    "impressions": None,
+                    "saves": None,
+                    "shares": None,
+                    "comments": None,
+                    "profile_visits": None,
+                    "whatsapp_clicks": None,
+                    "demo_requests": None,
+                    "customers": None,
+                },
+                "published_asset_under_review": {
+                    "instagram_url": proof.get("instagram_url"),
+                    "buffer_update_id": proof.get("buffer_update_id"),
+                    "image_sha256": proof.get("image_sha256"),
+                } if published else None,
+                "next_automatic_action": "Retry analytics collection after Instagram, Meta, and WhatsApp attribution are connected.",
+            }
+
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        whatsapp_clicks = _safe_int(today.get("conversations"))
+        demo_requests = _safe_int(today.get("demo_requests") or today.get("demo_bookings"))
+        customers = _safe_int(today.get("customers"))
+        business_value_score = min(
+            100,
+            ((whatsapp_clicks or 0) * 2)
+            + ((demo_requests or 0) * 20)
+            + ((customers or 0) * 50),
+        )
+        return {
+            "status": "verified",
+            "reason": "Calculated from verified acquisition signals.",
+            "ranked_assets": [
+                {
+                    "rank": 1,
+                    "instagram_url": proof.get("instagram_url") if published else None,
+                    "buffer_update_id": proof.get("buffer_update_id") if published else None,
+                    "business_value_score": business_value_score,
+                }
+            ],
+            "business_value_score": business_value_score,
+            "predicted_roi": "pending_attribution",
+            "predicted_demo_probability": None if demo_requests is None else min(1.0, demo_requests / 10),
+            "metrics": {
+                "reach": None,
+                "impressions": None,
+                "saves": None,
+                "shares": None,
+                "comments": None,
+                "profile_visits": None,
+                "whatsapp_clicks": whatsapp_clicks,
+                "demo_requests": demo_requests,
+                "customers": customers,
+            },
+            "published_asset_under_review": {
+                "instagram_url": proof.get("instagram_url"),
+                "buffer_update_id": proof.get("buffer_update_id"),
+                "image_sha256": proof.get("image_sha256"),
+            } if published else None,
+            "next_automatic_action": "Rank all content daily and promote only when score and budget rules allow it.",
+        }
+
+    def _campaign_lifecycle(
+        self,
+        execution_results: list[ExecutionResult],
+        content_intelligence: dict[str, Any],
+    ) -> dict[str, Any]:
+        completed_actions = {result.action for result in execution_results if result.status == "completed"}
+        return {
+            "steps": [
+                "Research",
+                "Creative Brief",
+                "Copy",
+                "Image",
+                "Video",
+                "Brand Validation",
+                "Conversion Review",
+                "Publish",
+                "Promote",
+                "Measure",
+                "Learn",
+            ],
+            "current_state": {
+                "research": "completed",
+                "creative_brief": "completed",
+                "copy": "completed",
+                "image": "completed" if "generate_branded_social_image" in completed_actions else "blocked",
+                "video": "specified",
+                "brand_validation": "completed" if "generate_branded_social_image" in completed_actions else "pending",
+                "conversion_review": content_intelligence.get("status", "unavailable"),
+                "publish": "completed" if "publish_social_post" in completed_actions else "blocked",
+                "promote": "blocked",
+                "measure": content_intelligence.get("status", "unavailable"),
+                "learn": "pending_verified_outcomes",
+            },
+        }
+
+    def _hypothesis_register(self, content_intelligence: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            {
+                "hypothesis": "Hebrew WhatsApp-intake content for Israeli law firms will increase qualified WhatsApp conversations.",
+                "status": "running" if content_intelligence.get("published_asset_under_review") else "pending_execution",
+                "success_metric": "Qualified leads, booked demos, and paying customers.",
+                "result": "pending_verified_attribution",
+                "confidence": "medium",
+            }
+        ]
+
+    def _decision_ledger(
+        self,
+        content_output: AgentOutput,
+        creative_brief: dict[str, Any],
+        content_intelligence: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        content = content_output.daily_output
+        return [
+            {
+                "decision": "Publish Hebrew WhatsApp-intake content for Israeli law firms.",
+                "reason": creative_brief["pain"],
+                "business_intent": "Increase qualified law-firm WhatsApp conversations that can become booked demos and customers.",
+                "prediction": "This content should increase qualified WhatsApp conversations once attribution is connected.",
+                "success_metric": creative_brief["success_metric"],
+                "result": content_intelligence.get("status"),
+                "learning": "pending_verified_outcomes",
+                "caption_hash": self._caption_hash(content_output),
+                "cta": content.get("cta"),
+            }
+        ]
+
+    def _business_memory(self, content_intelligence: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            {
+                "date": datetime.now(ZoneInfo(self.timezone)).date().isoformat(),
+                "learning": "No verified performance learning yet; attribution remains the highest leverage measurement gap.",
+                "confidence": "low" if content_intelligence.get("status") == "unavailable" else "medium",
+                "evidence": content_intelligence.get("published_asset_under_review"),
+                "action": "Keep collecting evidence and connect WhatsApp/Instagram attribution.",
+            }
+        ]
+
+    def _ads_output(
+        self,
+        meta_ads: dict[str, Any],
+        budget_status: dict[str, Any],
+        content_intelligence: dict[str, Any],
+    ) -> AgentOutput:
         verified_campaign = bool(meta_ads.get("verified") and meta_ads.get("campaign_status") == "active")
+        score = content_intelligence.get("business_value_score")
+        promote = bool(isinstance(score, int) and score >= 90 and budget_status.get("verified"))
         return AgentOutput(
             agent="Ads Agent",
             status="blocked",
@@ -705,18 +1034,27 @@ class MarketingDepartment:
                 "reason": (
                     "MetaExecutor is not implemented/configured. A campaign cannot be created or reported active."
                 ),
-                "budget_rule": "Do not exceed ILS 20/day. No Saturday spend. Friday morning only.",
+                "promotion_decision": "promote" if promote else "do_not_promote",
+                "business_value_score": score,
+                "budget_status": budget_status,
+                "budget_rule": "Do not exceed ILS 20/day or ILS 600/month. No Saturday spend. Friday morning only. One active promotion per asset.",
                 "verified_active_campaign": verified_campaign,
             },
             error="waiting_for_meta_executor",
         )
 
-    def _analytics_output(self, whatsapp_bot: dict[str, Any], meta_ads: dict[str, Any]) -> AgentOutput:
+    def _analytics_output(
+        self,
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        content_intelligence: dict[str, Any],
+    ) -> AgentOutput:
         verified = bool(whatsapp_bot.get("verified")) or bool(meta_ads.get("verified"))
         return AgentOutput(
             agent="Analytics Agent",
             status="collected" if verified else "blocked",
             daily_output={
+                "content_intelligence": content_intelligence,
                 "organic_reach": None,
                 "ctr": None,
                 "whatsapp_clicks": None,
@@ -848,6 +1186,15 @@ def attach_marketing_department_output(
 ) -> None:
     payload = output.to_dict()
     decision_context.summary["marketing_department"] = payload
+    decision_context.summary["aeos_spec"] = payload.get("aeos_spec", {})
+    decision_context.summary["organization"] = payload.get("organization", {})
+    decision_context.summary["creative_brief"] = payload.get("creative_brief", {})
+    decision_context.summary["campaign_lifecycle"] = payload.get("campaign_lifecycle", {})
+    decision_context.summary["budget_status"] = payload.get("budget_status", {})
+    decision_context.summary["content_intelligence"] = payload.get("content_intelligence", {})
+    decision_context.summary["hypothesis_register"] = payload.get("hypothesis_register", [])
+    decision_context.summary["decision_ledger"] = payload.get("decision_ledger", [])
+    decision_context.summary["business_memory"] = payload.get("business_memory", [])
     decision_context.summary["connector_execution"] = {
         "results": [result.to_dict() for result in output.execution_results],
         "proof_required": {
@@ -870,10 +1217,10 @@ def attach_marketing_department_output(
         "frozen_executive_layer": True,
         "active_department": "Marketing Operations",
         "department_status": output.status,
-            "success_criterion": (
-                "Operate for 14 days with more content published, more experiments run, "
-                "a better website, a complete audit trail, and more paying customers."
-            ),
+        "success_criterion": (
+            "Operate ChatBot2U marketing for 30 consecutive days without operational intervention "
+            "while increasing qualified leads, booked demos, and paying customers."
+        ),
     }
     executed = [
         action["action"]

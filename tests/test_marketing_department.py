@@ -166,6 +166,61 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("https://wa.me/972559720244", content["cta"])
         self.assertNotIn("Book a demo", content["cta"])
 
+    def test_aeos_spec_outputs_are_business_outcome_oriented(self) -> None:
+        context = _context()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(context)
+
+        payload = output.to_dict()
+
+        self.assertEqual(
+            payload["aeos_spec"]["primary_objective"],
+            "Acquire additional paying customers.",
+        )
+        self.assertEqual(payload["aeos_spec"]["north_star_priority_order"][0], "Paying Customers")
+        self.assertIn("Creative Director", payload["organization"]["workers"])
+        self.assertIn("Promotion Manager", payload["organization"]["workers"])
+        self.assertIn("Analytics Manager", payload["organization"]["workers"])
+        creative_brief = payload["creative_brief"]
+        for key in [
+            "campaign_objective",
+            "target_audience",
+            "pain",
+            "promise",
+            "offer",
+            "proof",
+            "headline",
+            "supporting_copy",
+            "cta",
+            "landing_page",
+            "promotion_strategy",
+            "success_metric",
+        ]:
+            self.assertIn(key, creative_brief)
+        self.assertEqual(creative_brief["marketing_language"], "Hebrew")
+        self.assertEqual(creative_brief["internal_operating_language"], "English")
+        self.assertIn("https://wa.me/972559720244", creative_brief["landing_page"])
+        self.assertEqual(payload["budget_status"]["daily_budget_limit_ils"], 20)
+        self.assertEqual(payload["budget_status"]["monthly_budget_limit_ils"], 600)
+        self.assertTrue(payload["budget_status"]["one_active_promotion_per_asset"])
+        self.assertEqual(payload["content_intelligence"]["status"], "unavailable")
+        self.assertIsNone(payload["content_intelligence"]["business_value_score"])
+        self.assertEqual(payload["hypothesis_register"][0]["result"], "pending_verified_attribution")
+        self.assertEqual(payload["decision_ledger"][0]["learning"], "pending_verified_outcomes")
+
+        attach_marketing_department_output(context, output)
+        self.assertIn("creative_brief", context.summary)
+        self.assertIn("budget_status", context.summary)
+        self.assertIn("content_intelligence", context.summary)
+        self.assertIn("decision_ledger", context.summary)
+        self.assertIn("business_memory", context.summary)
+        self.assertIn("30 consecutive days", context.summary["execution_departments"]["success_criterion"])
+
     def test_video_specs_use_heygen_without_subtitles_for_instagram_reels(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output = MarketingDepartment(

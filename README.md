@@ -4,7 +4,7 @@ AI Executive Operating System foundation for ChatBot2U. The AI CMO is the first 
 
 This version generates a structured daily executive report, renders an English CEO brief from it, sends it through Resend, and stores memory for learning. The north-star KPI is paying customers; booked demos remain an important conversion signal.
 
-The permanent definition of done is [`AUTONOMOUS_CMO_ACCEPTANCE.md`](/Users/rami/Documents/Codex/2026-07-03/chrome-plugin-chrome-openai-bundled-file-2/AUTONOMOUS_CMO_ACCEPTANCE.md). The architecture is frozen; future sprints should close the gap between autonomous marketing execution and autonomous business growth.
+The master operating contract is [`AUTONOMOUS_EXECUTIVE_OS_SPECIFICATION_v1.0.md`](/Users/rami/Documents/Codex/2026-07-03/chrome-plugin-chrome-openai-bundled-file-2/AUTONOMOUS_EXECUTIVE_OS_SPECIFICATION_v1.0.md). The permanent definition of done remains [`AUTONOMOUS_CMO_ACCEPTANCE.md`](/Users/rami/Documents/Codex/2026-07-03/chrome-plugin-chrome-openai-bundled-file-2/AUTONOMOUS_CMO_ACCEPTANCE.md). The architecture is frozen; future sprints should close the gap between autonomous marketing execution and autonomous business growth.
 
 ## What It Does
 
