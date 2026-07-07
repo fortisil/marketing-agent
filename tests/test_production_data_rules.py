@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.briefs.generator import build_prompt
+from src.briefs.generator import build_prompt, validate_executive_decision_brief_style
 from src.decisions.engine import DecisionEngine
 from src.providers.base import MetricSnapshot
 from src.providers.whatsapp_bot import WhatsAppBotProvider
@@ -176,10 +176,28 @@ class ProductionDataRulesTests(unittest.TestCase):
         prompt = build_prompt(_company_config(), context, "Hebrew style guide", brief_language="en")
 
         self.assertIn("Write a daily CEO brief in English", prompt)
+        self.assertIn("Executive Decision Brief", prompt)
+        self.assertIn("Yesterday the business became healthier because", prompt)
+        self.assertIn("Yesterday the business did not improve because", prompt)
+        self.assertIn("The Executive OS is not evaluated by activities", prompt)
+        self.assertIn("Every morning the AI must prove that the probability of acquiring another paying customer increased", prompt)
+        self.assertIn("Are we closer to another paying customer than we were yesterday?", prompt)
+        self.assertIn("EXECUTIVE SCOREBOARD", prompt)
+        self.assertIn("Business Funnel", prompt)
+        self.assertIn("Content Intelligence", prompt)
+        self.assertIn("Campaign Intelligence", prompt)
+        self.assertIn("Website Intelligence", prompt)
+        self.assertIn("Competitor Intelligence", prompt)
+        self.assertIn("WhatsApp Intelligence", prompt)
+        self.assertIn("Decision Ledger", prompt)
+        self.assertIn("Opportunity Ranking", prompt)
+        self.assertIn("Executive Calendar", prompt)
+        self.assertIn("If I were the CEO today", prompt)
+        self.assertIn("No paragraphs", prompt)
         self.assertIn("No verified data available yet", prompt)
         self.assertIn("Data confidence:", prompt)
-        self.assertIn("Write like an operator, not a reporter.", prompt)
-        self.assertIn("Keep the CEO brief to one page.", prompt)
+        self.assertIn("not an activity log", prompt)
+        self.assertIn("executive dashboard", prompt)
         self.assertIn("execution_queue", prompt)
         self.assertIn("marketing_department", prompt)
         self.assertIn("connector_execution", prompt)
@@ -199,9 +217,6 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("acceptance_criteria", prompt)
         self.assertIn("final_definition_of_done", prompt)
         self.assertIn("workforce", prompt)
-        self.assertIn("Put `Business Autonomy Index` immediately after the trust banner", prompt)
-        self.assertIn("Include `Autonomous Work Completion Rate` after Business Autonomy Index", prompt)
-        self.assertIn("Include `Revenue Influence Score` after Autonomous Work Completion Rate", prompt)
         self.assertIn("Include budget status only as operating proof", prompt)
         self.assertIn("Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`", prompt)
         self.assertIn("Include promotion only from `promotion_brain` and `budget_guard`", prompt)
@@ -209,13 +224,84 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("If there is no evidence, the action did not happen.", prompt)
         self.assertIn("Buffer update ID, Buffer post URL, publish status, timestamp, caption hash, image hash, and worker ID", prompt)
         self.assertIn("Include an Instagram permalink only when Buffer returns a real `instagram.com` URL.", prompt)
-        self.assertIn("What did I accomplish for ChatBot2U while you were away?", prompt)
         self.assertIn("Do not claim content was published", prompt)
         self.assertIn("Do not tell the CEO that something is \"ready\"", prompt)
         self.assertIn("Never write phrases like \"publishing path exists\"", prompt)
         self.assertIn("Only report: Completed, Blocked, Failed", prompt)
         self.assertIn("Do not include long internal task lists", prompt)
         self.assertNotIn("כתוב בריף", prompt)
+
+    def test_executive_decision_brief_validator_rejects_activity_log_opening(self) -> None:
+        brief = "I published one post yesterday.\n\n## EXECUTIVE SCOREBOARD"
+
+        with self.assertRaisesRegex(RuntimeError, "business-health sentence"):
+            validate_executive_decision_brief_style(brief)
+
+    def test_executive_decision_brief_validator_accepts_business_first_brief(self) -> None:
+        brief = """
+Yesterday the business did not improve because no verified customer-acquisition outcome was available yet.
+
+## EXECUTIVE SCOREBOARD
+Business Health ............. No verified data available yet
+
+## Executive Summary
+- No verified data available yet.
+
+## Yesterday
+None completed with proof.
+
+## Results
+No verified data available yet.
+
+## Business Funnel
+Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
+
+## Content Intelligence
+Unavailable.
+
+## Campaign Intelligence
+Unavailable.
+
+## Website Intelligence
+Unavailable.
+
+## Competitor Intelligence
+Unavailable.
+
+## WhatsApp Intelligence
+No verified WhatsApp event data available.
+
+## Decision Ledger
+No autonomous spend decision without attribution.
+
+## Currently Working
+Discovering the missing attribution path.
+
+## Self Evaluation
+Yesterday's prediction: unavailable. Result: unavailable.
+
+## Business Memory
+No verified learning added.
+
+## Budget
+Daily: unavailable. Monthly: unavailable.
+
+## Opportunity Ranking
+1. Connect attribution.
+
+## Risks
+Closed-loop attribution missing.
+
+## Executive Calendar
+09:00 Review verified data availability.
+
+## Proof
+No completed action proof available.
+
+If I were the CEO today, I would focus on: attribution because it tells us which action creates paying customers.
+"""
+
+        validate_executive_decision_brief_style(brief)
 
 
 if __name__ == "__main__":

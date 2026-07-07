@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 from typing import Any
 
 from openai import OpenAI
@@ -10,6 +11,43 @@ from src.decisions.engine import DecisionContext
 
 
 FORBIDDEN_TERMS = ("נגנבו", "WattsApp")
+EXECUTIVE_DECISION_STARTS = (
+    "Yesterday the business became healthier because",
+    "Yesterday the business did not improve because",
+)
+EXECUTIVE_DECISION_REQUIRED_MARKERS = (
+    "EXECUTIVE SCOREBOARD",
+    "Executive Summary",
+    "Yesterday",
+    "Results",
+    "Business Funnel",
+    "Content Intelligence",
+    "Campaign Intelligence",
+    "Website Intelligence",
+    "Competitor Intelligence",
+    "WhatsApp Intelligence",
+    "Decision Ledger",
+    "Currently Working",
+    "Self Evaluation",
+    "Business Memory",
+    "Budget",
+    "Opportunity Ranking",
+    "Risks",
+    "Executive Calendar",
+    "Proof",
+    "If I were the CEO today",
+)
+EXECUTIVE_DECISION_FORBIDDEN_PHRASES = (
+    "I published",
+    "I prepared",
+    "ready to publish",
+    "ready to execute",
+    "prepared for",
+    "queued for",
+    "publishing path exists",
+    "connector runtime exists",
+    "execution path is implemented",
+)
 
 
 def build_prompt(
@@ -29,25 +67,33 @@ def build_prompt(
         return f"""
 Write a daily CEO brief in English for {company["name"]}.
 
-This is not a generic report. It is an AI CMO brief for Rami that must help ChatBot2U make better growth decisions without overstating reality. Write like an operator, not a reporter.
+This is not a generic report. It is an Executive Decision Brief for Rami. It must help him understand whether ChatBot2U is closer to acquiring another paying customer than it was yesterday. Write like an operator who manages business outcomes, not an activity reporter.
 
-Mandatory trust banner at the very top:
+Mandatory opening line:
+- Start the brief with exactly one of these two sentence patterns:
+  - "Yesterday the business became healthier because ..."
+  - "Yesterday the business did not improve because ..."
+- Never start with "I published", "I prepared", activity narration, or infrastructure status.
+- If measurable customer-acquisition improvement cannot be proven, say that directly and make the highest priority discovering why.
+
+Immediately after the mandatory opening line, include the trust banner:
 Data confidence:
 - High: real data from connected source
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, and `marketing_department` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
+- The Executive OS is not evaluated by activities. It is evaluated by measurable business improvement.
+- Every morning the AI must prove that the probability of acquiring another paying customer increased. If it cannot prove that, its highest priority is discovering why.
 - Never optimize activity. Always optimize customer acquisition.
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
-- Put `Business Autonomy Index` immediately after the trust banner. Show Overall first, then Planning, Execution, Learning, Revenue Influence, and Trend when available.
-- Include `Autonomous Work Completion Rate` after Business Autonomy Index. Show planned tasks, completed automatically, blocked, failed, and success rate.
-- Include `Revenue Influence Score` after Autonomous Work Completion Rate. If funnel attribution is unavailable, say it is unavailable and name the missing verified connector.
+- The brief is not an activity log. It is an executive dashboard.
+- The CEO should be able to read it in under 90 seconds and immediately understand: business health, measurable value, yesterday, today, next action, biggest opportunity, and biggest risk.
 - Include budget status only as operating proof: daily limit, monthly limit, active campaign status, and whether spend is verified. Do not imply spend occurred unless verified.
 - Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`. If learning is pending because attribution is missing, say that directly.
 - Include promotion only from `promotion_brain` and `budget_guard`. If Budget Guard blocks campaign creation, report the failed rule and next automatic retry.
@@ -55,7 +101,7 @@ Hard rules:
 - Include `Self-Evaluation` near the end. Answer only these five questions from `self_evaluation`: measurable business value, evidence, biggest positive decision, wrong decision, tomorrow's change.
 - Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
 - The Executive Layer is frozen except for bug fixes. New capability belongs in autonomous departments.
-- The active department is Marketing Operations. The CEO brief must answer: "What did I accomplish for ChatBot2U while you were away?"
+- The active department is Marketing Operations. The CEO brief must answer: "Are we closer to another paying customer than we were yesterday?"
 - Do not ask the CEO to fetch metrics. If Meta/WhatsApp sync is pending, describe it as an internal execution queue item with status and retry.
 - Do not claim content was published, an ad was started, or outreach was sent unless the relevant department action has status `executed` and contains required evidence. If there is no evidence, the action did not happen.
 - For published Instagram content, required evidence is Buffer update ID, Buffer post URL, publish status, timestamp, caption hash, image hash, and worker ID. Include an Instagram permalink only when Buffer returns a real `instagram.com` URL.
@@ -66,23 +112,63 @@ Hard rules:
 - If no verified campaign exists, say: "No campaign has been verified as active."
 - If WhatsApp data is unavailable, say: "No verified WhatsApp event data available."
 - Include: "To track WhatsApp leads, connect the WhatsApp bot event log/webhook."
+- Every completed item requires proof. Acceptable proof includes Instagram URL, Buffer ID, Campaign ID, Cloudinary URL, GitHub PR, Video URL, Report URL, timestamp, and SHA/hash. If there is no proof, do not report the item as completed.
 - Use English headings and English body copy.
 - The CEO brief to Rami must be English. Do not write Hebrew except for brand names, quoted terms, or phone/contact details.
 - Use DailyReport as the source of truth. The email is only a Markdown view of the structured data.
 
-Keep the CEO brief to one page. Include only:
-1. Data confidence trust banner.
-2. Business Autonomy Index.
-3. Autonomous Work Completion Rate.
-4. Revenue Influence Score.
-5. Executive Summary.
-6. What changed.
-7. Today's initiative.
-8. Completed execution.
-9. Blocked or failed execution, with next automatic retry.
-10. Decisions requiring escalation, if any.
-11. Self-Evaluation.
-12. Missing verified data only when it affects today's decision.
+Keep the CEO brief concise. Use these sections in this order:
+0. Mandatory opening sentence: "Yesterday the business became healthier because ..." or "Yesterday the business did not improve because ...".
+1. EXECUTIVE SCOREBOARD:
+   - No paragraphs.
+   - Numbers/status only.
+   - Include Business Health, Marketing Health, Revenue Momentum, Pipeline, Booked Demos, New Customers, Monthly Revenue, Marketing ROI, Today's Confidence, Business Autonomy, and Status.
+   - Use "No verified data available yet" or "Unavailable" when the number is not verified.
+2. Executive Summary:
+   - Maximum five bullets.
+   - Business outcome first, not activity first.
+3. Yesterday:
+   - Created, Published, Promoted, Website changes, Videos, Images, Emails, Campaigns, PRs, Competitor analysis, Learning completed.
+   - Every completed line must include evidence or say none completed.
+4. Results:
+   - Instagram, WhatsApp clicks, website visits, conversion, demo requests, booked demos, customers, revenue.
+   - Compare to yesterday, last week, and average only when real data exists.
+5. Business Funnel:
+   - Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
+   - For each step show Current, Yesterday, Change, Target, Conversion, Bottleneck.
+   - Highlight the bottleneck automatically.
+6. Content Intelligence:
+   - Score every published asset when verified data exists.
+   - Include Business Value Score, Creative Score, Conversion Score, Expected ROI, Recommendation, and Reason.
+7. Campaign Intelligence:
+   - Show organic/running status, spend, CTR, CPC, WhatsApp, qualified, demos, customers, recommendation, expected ROI.
+   - If unavailable, say unavailable.
+8. Website Intelligence:
+   - Visitors, conversion, CTA clicks, most viewed page, worst page, bounce, top search query, recommendation, and whether to open a PR.
+9. Competitor Intelligence:
+   - Analyzed, top campaign, opportunity, threat, recommended response. If not connected, say unavailable.
+10. WhatsApp Intelligence:
+   - Conversations, qualified, demo requests, booked, closed, lost, most common objection, response quality, average response time, recommendation.
+11. Decision Ledger:
+   - Today's decisions, reason, expected outcome, and how success will be measured.
+12. Currently Working:
+   - Only real work in progress. No fake progress, no "ready", no "prepared", no "queued".
+13. Self Evaluation:
+   - Yesterday's prediction, result, prediction confidence, learning, and whether a Business Memory rule was added.
+14. Business Memory:
+   - New learning only. If none is verified, say none verified.
+15. Budget:
+   - Daily, spent, remaining, monthly, spent, remaining, forecast. If spend is not verified, say unavailable.
+16. Opportunity Ranking:
+   - The most important section. Rank today's opportunities by expected customer-acquisition impact and confidence.
+17. Risks:
+   - Real business risks and mitigations.
+18. Executive Calendar:
+   - Today only. Show what the AI will do and when, using local Israel time.
+19. Proof:
+   - Evidence IDs/URLs/hashes for every completed action.
+20. CEO Question:
+   - End with exactly one sentence: "If I were the CEO today, I would focus on: ___ because ___."
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
 
@@ -195,9 +281,11 @@ def generate_brief(
 
     brief_language = settings.brief_language or company_config["company"].get("brief_language", "en")
     system_content = (
-        "You are an AI CMO chief of staff. Write concise, professional English. "
+        "You are an AI CMO chief of staff writing an Executive Decision Brief for a CEO. "
+        "Write concise, professional English focused on customer acquisition, business health, "
+        "evidence, bottlenecks, and next decisions. "
         "Never invent metrics. If data is unavailable or unverified, say so clearly. "
-        "Separate executed actions from recommended actions. Return only the CEO brief."
+        "Never write an activity log. Return only the CEO brief."
     )
     if str(brief_language).lower() in {"he", "hebrew", "עברית"}:
         system_content = (
@@ -208,32 +296,59 @@ def generate_brief(
             "Return only the CEO brief."
         )
 
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {
-                "role": "system",
-                "content": system_content,
-            },
-            {
-                "role": "user",
-                "content": build_prompt(
-                    company_config,
-                    decision_context,
-                    hebrew_style_guide,
-                    brief_language=brief_language,
-                ),
-            },
-        ],
-    )
+    messages = [
+        {
+            "role": "system",
+            "content": system_content,
+        },
+        {
+            "role": "user",
+            "content": build_prompt(
+                company_config,
+                decision_context,
+                hebrew_style_guide,
+                brief_language=brief_language,
+            ),
+        },
+    ]
 
-    content = response.choices[0].message.content
-    if not content:
-        raise RuntimeError("OpenAI returned an empty brief.")
+    last_error: RuntimeError | None = None
+    for attempt in range(2):
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=messages,
+        )
 
-    normalized = normalize_brief_language(content.strip())
-    validate_hebrew_brief_style(normalized)
-    return normalized
+        content = response.choices[0].message.content
+        if not content:
+            raise RuntimeError("OpenAI returned an empty brief.")
+
+        normalized = normalize_brief_language(content.strip())
+        try:
+            validate_hebrew_brief_style(normalized)
+            if str(brief_language).lower() in {"en", "english"}:
+                validate_executive_decision_brief_style(normalized)
+            return normalized
+        except RuntimeError as exc:
+            last_error = exc
+            if attempt == 1 or str(brief_language).lower() not in {"en", "english"}:
+                raise
+            messages.extend(
+                [
+                    {"role": "assistant", "content": normalized},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Rewrite the brief to satisfy the Executive Decision Brief contract. "
+                            f"Validation failed: {exc}. "
+                            "Start with the mandatory business-health sentence, include all required "
+                            "executive sections, avoid activity-log language, and use only verified data."
+                        ),
+                    },
+                ]
+            )
+
+    raise last_error or RuntimeError("Failed to generate a valid Executive Decision Brief.")
 
 
 def normalize_brief_language(brief: str) -> str:
@@ -264,3 +379,35 @@ def validate_hebrew_brief_style(brief: str) -> None:
     found = [term for term in FORBIDDEN_TERMS if term in brief]
     if found:
         raise RuntimeError(f"Brief contains forbidden Hebrew style terms: {', '.join(found)}")
+
+
+def validate_executive_decision_brief_style(brief: str) -> None:
+    first_line = next((line.strip() for line in brief.splitlines() if line.strip()), "")
+    cleaned_first_line = re.sub(r"^[#>*_\-\s]+", "", first_line).strip()
+    if not cleaned_first_line.startswith(EXECUTIVE_DECISION_STARTS):
+        raise RuntimeError(
+            "English CEO brief must start with a business-health sentence, not an activity log."
+        )
+
+    lower_brief = brief.lower()
+    forbidden = [
+        phrase
+        for phrase in EXECUTIVE_DECISION_FORBIDDEN_PHRASES
+        if phrase.lower() in lower_brief
+    ]
+    if forbidden:
+        raise RuntimeError(
+            "English CEO brief contains forbidden activity/infrastructure language: "
+            + ", ".join(forbidden)
+        )
+
+    missing = [
+        marker
+        for marker in EXECUTIVE_DECISION_REQUIRED_MARKERS
+        if marker.lower() not in lower_brief
+    ]
+    if missing:
+        raise RuntimeError(
+            "English CEO brief is missing Executive Decision Brief sections: "
+            + ", ".join(missing)
+        )
