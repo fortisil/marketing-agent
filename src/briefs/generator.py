@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 import re
 from typing import Any
 
@@ -62,7 +63,11 @@ def build_prompt(
     marketing = company_config["marketing"]
     budget_rule = marketing["budget_rule"]
     cta = marketing["cta"]
-    decision_payload = decision_context.to_prompt_payload()
+    decision_payload = json.dumps(
+        _compact_prompt_payload(decision_context),
+        ensure_ascii=False,
+        sort_keys=True,
+    )
     language = (brief_language or company.get("brief_language") or "en").strip().lower()
 
     if language in {"en", "english"}:
@@ -303,6 +308,106 @@ Return only the CEO brief in Markdown.
 אל תמציא נתונים מעבר לקונטקסט. אם חסר מידע, ציין שזה נתון זמני או חיבור עתידי.
 לפני החזרת התשובה, בדוק שאין בה את המילים האסורות: נגנבו, WattsApp.
 """.strip()
+
+
+def _compact_prompt_payload(decision_context: DecisionContext) -> dict[str, Any]:
+    if not hasattr(decision_context, "summary"):
+        if hasattr(decision_context, "to_prompt_payload"):
+            return _compact_value(decision_context.to_prompt_payload(), depth=0)
+        return {}
+
+    summary = decision_context.summary
+    selected_summary = {
+        key: summary.get(key)
+        for key in [
+            "data_confidence",
+            "data_status",
+            "metric_sources",
+            "execution_reality",
+            "executed_actions_today",
+            "blocked_actions",
+            "failed_actions",
+            "autonomous_work_completion_rate",
+            "revenue_influence_score",
+            "business_autonomy_index",
+            "executive_measurement",
+            "operating_executive",
+            "growth_intelligence",
+            "promotion_brain",
+            "budget_status",
+            "budget_guard",
+            "content_intelligence",
+            "decision_ledger",
+            "hypothesis_register",
+            "business_memory",
+            "monitoring",
+            "weekly_executive_review",
+            "self_evaluation",
+            "connector_execution",
+            "whatsapp_bot",
+            "meta_ads",
+            "website_intelligence",
+            "brand_intelligence",
+        ]
+        if key in summary
+    }
+    return _compact_value(
+        {
+            "run_date": decision_context.run_date,
+            "questions": decision_context.questions,
+            "summary": selected_summary,
+            "decisions": decision_context.decisions[:12],
+            "highest_roi_activity": decision_context.highest_roi_activity,
+            "risks": decision_context.risks[:12],
+            "daily_report": {
+                "company": decision_context.daily_report.company,
+                "company_state": decision_context.daily_report.company_state,
+                "date": decision_context.daily_report.date,
+                "mission": decision_context.daily_report.mission,
+                "objective_status": decision_context.daily_report.objective_status,
+                "initiatives": [
+                    initiative.to_dict()
+                    for initiative in decision_context.daily_report.initiatives[:4]
+                ],
+                "recommendations": [
+                    recommendation.to_dict()
+                    for recommendation in decision_context.daily_report.recommendations[:6]
+                ],
+                "confidence": decision_context.daily_report.confidence,
+                "next_review": decision_context.daily_report.next_review,
+            },
+            "snapshots": [
+                {
+                    "provider": snapshot.provider,
+                    "collected_at": snapshot.collected_at.isoformat(),
+                    "notes": snapshot.notes[:4],
+                    "metric_groups": list(snapshot.metrics.keys())[:12],
+                }
+                for snapshot in decision_context.snapshots
+            ],
+        },
+        depth=0,
+    )
+
+
+def _compact_value(value: Any, *, depth: int) -> Any:
+    if depth > 8:
+        return "<truncated>"
+    if isinstance(value, dict):
+        return {
+            str(key): _compact_value(item, depth=depth + 1)
+            for key, item in list(value.items())[:40]
+            if item is not None
+        }
+    if isinstance(value, list):
+        return [_compact_value(item, depth=depth + 1) for item in value[:20]]
+    if isinstance(value, tuple):
+        return [_compact_value(item, depth=depth + 1) for item in value[:20]]
+    if isinstance(value, str):
+        if len(value) > 1600:
+            return value[:1600] + "... <truncated>"
+        return value
+    return value
 
 
 def generate_brief(

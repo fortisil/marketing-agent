@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from src.briefs.generator import build_prompt
 from src.channels.file_output import FileOutputChannel
 from src.decisions.engine import DecisionEngine
 from src.execution.marketing_department import (
@@ -323,6 +324,25 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertTrue(budget["authoritative"])
         self.assertEqual(campaign["campaigns"][0]["name"], "Exploration - Israeli law firms WhatsApp conversations")
         self.assertTrue(content["ranked_assets"])
+
+    def test_operating_executive_prompt_payload_stays_compact(self) -> None:
+        context = _context()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(context)
+        attach_marketing_department_output(context, output)
+
+        prompt = build_prompt(_company_config(), context, "Hebrew style guide", brief_language="en")
+
+        self.assertLess(len(prompt), 70000)
+        self.assertIn("operating_executive", prompt)
+        self.assertIn("manager_reports", prompt)
+        self.assertIn("internal_budget_ledger", prompt)
+        self.assertNotIn("knowledge_summary", prompt)
 
     def test_video_specs_use_heygen_without_subtitles_for_instagram_reels(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
