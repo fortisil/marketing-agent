@@ -70,6 +70,7 @@ class MarketingDepartmentOutput:
     budget_status: dict[str, Any] = field(default_factory=dict)
     content_intelligence: dict[str, Any] = field(default_factory=dict)
     growth_intelligence: dict[str, Any] = field(default_factory=dict)
+    executive_measurement: dict[str, Any] = field(default_factory=dict)
     promotion_brain: dict[str, Any] = field(default_factory=dict)
     budget_guard: dict[str, Any] = field(default_factory=dict)
     video_production: dict[str, Any] = field(default_factory=dict)
@@ -101,6 +102,7 @@ class MarketingDepartmentOutput:
             "budget_status": self.budget_status,
             "content_intelligence": self.content_intelligence,
             "growth_intelligence": self.growth_intelligence,
+            "executive_measurement": self.executive_measurement,
             "promotion_brain": self.promotion_brain,
             "budget_guard": self.budget_guard,
             "video_production": self.video_production,
@@ -207,6 +209,18 @@ class MarketingDepartment:
         growth_intelligence = self._growth_intelligence(whatsapp_bot, meta_ads, website_intelligence, content_intelligence)
         budget_guard = self._budget_guard(budget_status)
         promotion_brain = self._promotion_brain(content_intelligence, budget_status, budget_guard)
+        executive_measurement = self._executive_measurement(
+            content_intelligence=content_intelligence,
+            growth_intelligence=growth_intelligence,
+            promotion_brain=promotion_brain,
+            budget_status=budget_status,
+            budget_guard=budget_guard,
+            whatsapp_bot=whatsapp_bot,
+            meta_ads=meta_ads,
+            website_intelligence=website_intelligence,
+            buffer_result=buffer_result,
+            run_date=decision_context.run_date,
+        )
         video_output = self._video_output(cta, brand_intelligence)
         video_production = self._video_production(video_output.daily_output, brand_intelligence)
         social_output = self._social_output(
@@ -252,6 +266,7 @@ class MarketingDepartment:
             budget_status=budget_status,
             content_intelligence=content_intelligence,
             growth_intelligence=growth_intelligence,
+            executive_measurement=executive_measurement,
             promotion_brain=promotion_brain,
             budget_guard=budget_guard,
             video_production=video_production,
@@ -1053,6 +1068,213 @@ class MarketingDepartment:
             },
         }
 
+    def _executive_measurement(
+        self,
+        *,
+        content_intelligence: dict[str, Any],
+        growth_intelligence: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        budget_status: dict[str, Any],
+        budget_guard: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        website_intelligence: dict[str, Any],
+        buffer_result: ExecutionResult | None,
+        run_date: str,
+    ) -> dict[str, Any]:
+        published = buffer_result is not None and buffer_result.status == "completed"
+        proof = buffer_result.proof if published else {}
+        verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        website_known = bool(isinstance(website_intelligence, dict) and website_intelligence)
+
+        score = 50
+        reasons: list[str] = []
+        if published:
+            score += 10
+            reasons.append("+ Published customer-acquisition content with execution proof.")
+        else:
+            score -= 6
+            reasons.append("- No verified published social asset in this run.")
+        if website_known:
+            score += 6
+            reasons.append("+ Website/repository intelligence is available for conversion review.")
+        if verified_whatsapp:
+            score += 16
+            reasons.append("+ WhatsApp attribution is connected.")
+        else:
+            score -= 14
+            reasons.append("- WhatsApp attribution is missing, so customer acquisition cannot be measured.")
+        if verified_meta:
+            score += 8
+            reasons.append("+ Meta spend/performance data is verified.")
+        else:
+            score -= 6
+            reasons.append("- Meta campaign performance is not verified.")
+        score = max(0, min(100, score))
+
+        evidence_level = "verified_internal_data" if verified_whatsapp or verified_meta else "hypothesis"
+        if published and not (verified_whatsapp or verified_meta):
+            evidence_level = "public_platform_signal_pending"
+
+        instagram_metrics = growth_intelligence.get("instagram", {})
+        whatsapp_metrics = growth_intelligence.get("whatsapp", {})
+        campaign_metrics = growth_intelligence.get("meta_ads", {})
+
+        return {
+            "principle": (
+                "The AI CMO reports whether business performance improved, why, and what decision it is making next."
+            ),
+            "executive_decision": {
+                "paragraph": (
+                    "Yesterday customer-acquisition execution moved forward because a verified social asset is now under review, "
+                    "but the business impact cannot be proven until Instagram engagement and WhatsApp attribution are measured. "
+                    "Today I will monitor the post, compare it against benchmarks, and decide by 16:00 Asia/Jerusalem whether "
+                    "the daily ₪20 promotion budget should be used under the exploration guardrails."
+                    if published
+                    else "Yesterday the business did not improve measurably because no verified customer-acquisition artifact reached the market. "
+                    "Today I will remove the highest-impact execution or measurement blocker, then reassess whether publishing or promotion can create qualified WhatsApp conversations."
+                ),
+                "decision_by": f"{run_date} 16:00 Asia/Jerusalem",
+                "next_decision": "Use or hold today's ₪20 promotion budget based on post signal quality and budget guard status.",
+            },
+            "business_health": {
+                "score": score,
+                "status": "improving" if score >= 60 else "requires_attention",
+                "reason": reasons,
+                "trend": "improving" if published else "flat",
+            },
+            "evidence_levels": {
+                "verified_internal_data": {
+                    "available": verified_whatsapp or verified_meta,
+                    "sources": [
+                        source
+                        for source, available in {
+                            "WhatsApp": verified_whatsapp,
+                            "Meta": verified_meta,
+                        }.items()
+                        if available
+                    ],
+                    "confidence": "high" if verified_whatsapp or verified_meta else "not_available",
+                },
+                "public_platform_signals": {
+                    "available": published,
+                    "sources": ["Buffer publish proof"] if published else [],
+                    "confidence": "medium" if published else "not_available",
+                },
+                "hypotheses": {
+                    "available": True,
+                    "confidence": "low",
+                    "primary_hypothesis": promotion_brain.get("hypothesis"),
+                },
+                "current_decision_evidence_level": evidence_level,
+            },
+            "measurement_questions": [
+                {
+                    "question": "What improved?",
+                    "answer": (
+                        "Distribution is underway for a verified published asset."
+                        if published
+                        else "No verified customer-acquisition improvement was measured."
+                    ),
+                },
+                {
+                    "question": "Why?",
+                    "answer": (
+                        "Publication proof exists, but performance proof is still pending."
+                        if published
+                        else "The execution or measurement connector did not produce a completed market-facing artifact."
+                    ),
+                },
+                {
+                    "question": "What got worse?",
+                    "answer": "Measurement risk remains high because attribution is still incomplete.",
+                },
+                {
+                    "question": "What are we changing?",
+                    "answer": "Stop reporting bare unavailable values; each gap now has a business impact, action, owner, and review time.",
+                },
+                {
+                    "question": "What do we expect tomorrow?",
+                    "answer": "A post-performance decision: continue monitoring, create a follow-up, or promote inside the ₪20/day guardrail.",
+                },
+            ],
+            "instagram_performance": {
+                "status": "monitoring" if published else "not_published_in_this_run",
+                "post": proof.get("instagram_url") or proof.get("buffer_post_url"),
+                "published_at": proof.get("timestamp"),
+                "reach": instagram_metrics.get("reach"),
+                "likes": instagram_metrics.get("likes"),
+                "comments": instagram_metrics.get("comments"),
+                "shares": instagram_metrics.get("shares"),
+                "saves": instagram_metrics.get("saves"),
+                "profile_visits": instagram_metrics.get("profile_visits"),
+                "whatsapp_clicks": instagram_metrics.get("whatsapp_clicks"),
+                "status_reason": (
+                    "Post is published; live Instagram Insights connector is not connected yet."
+                    if published
+                    else "No published post proof exists for this run."
+                ),
+                "business_impact": "Cannot judge creative performance until Instagram engagement and WhatsApp clicks are measured.",
+                "automatic_action": "Review post performance again in 6 hours and compare against previous post benchmarks.",
+                "expected_review": f"{run_date} 16:00 Asia/Jerusalem",
+                "confidence": 0.74 if published else 0.42,
+                "recommendation": (
+                    "Continue monitoring; promote only if early engagement or exploration policy justifies spend."
+                    if published
+                    else "Publish a Hebrew WhatsApp-first asset before evaluating promotion."
+                ),
+            },
+            "whatsapp_measurement": {
+                "status": "verified" if verified_whatsapp else "no_production_webhook_connected",
+                "conversations": whatsapp_metrics.get("new_conversations"),
+                "qualified": whatsapp_metrics.get("qualified_leads"),
+                "demo_requests": whatsapp_metrics.get("demo_requests"),
+                "booked": whatsapp_metrics.get("booked_demos"),
+                "closed": whatsapp_metrics.get("customers"),
+                "business_impact": (
+                    "Able to measure content-to-lead conversion."
+                    if verified_whatsapp
+                    else "Unable to measure customer acquisition from content to booked demos."
+                ),
+                "automatic_action": (
+                    "Analyze drop-off and response quality."
+                    if verified_whatsapp
+                    else "Waiting for WhatsApp webhook/event-log deployment; keep publishing with explicit tracking assumptions."
+                ),
+                "expected_completion": f"{run_date} 18:00 Asia/Jerusalem",
+                "confidence": 0.92 if verified_whatsapp else 0.64,
+            },
+            "campaign_if_available": {
+                "status": "blocked_by_budget_guard" if not budget_guard.get("campaign_creation_allowed") else "eligible_if_promotion_brain_approves",
+                "campaign_to_launch": {
+                    "audience": "Israeli law firms",
+                    "budget": "₪20/day",
+                    "objective": "WhatsApp conversations",
+                    "expected_cpl_ils": 17,
+                    "stop_rule": "Stop if no qualified conversations after ₪80 spent.",
+                    "schedule": "Sunday-Thursday; Friday morning only; never Saturday.",
+                },
+                "current_spend_ils": campaign_metrics.get("spend"),
+                "budget_verified": budget_status.get("verified"),
+                "decision": promotion_brain.get("decision"),
+                "reason": promotion_brain.get("reason"),
+            },
+            "today_operating_work": [
+                "Review yesterday's post and classify signal quality.",
+                "Compare creative against previous posts and public benchmarks.",
+                "Decide by 16:00 whether to use the ₪20 promotion budget.",
+                "Keep WhatsApp attribution as the highest-priority measurement gap.",
+                "Prepare the next founder-led Hebrew asset if the current post is inconclusive.",
+            ],
+            "opportunity": {
+                "highest": "Founder-led Hebrew WhatsApp-intake content",
+                "reason": "Highest predicted conversion path for Israeli law firms while attribution is incomplete.",
+                "expected": "+2 demo opportunities if promoted and WhatsApp tracking confirms lead quality.",
+                "confidence": 0.81 if published else 0.68,
+            },
+        }
+
     def _campaign_lifecycle(
         self,
         execution_results: list[ExecutionResult],
@@ -1595,6 +1817,7 @@ def attach_marketing_department_output(
     decision_context.summary["budget_status"] = payload.get("budget_status", {})
     decision_context.summary["content_intelligence"] = payload.get("content_intelligence", {})
     decision_context.summary["growth_intelligence"] = payload.get("growth_intelligence", {})
+    decision_context.summary["executive_measurement"] = payload.get("executive_measurement", {})
     decision_context.summary["promotion_brain"] = payload.get("promotion_brain", {})
     decision_context.summary["budget_guard"] = payload.get("budget_guard", {})
     decision_context.summary["video_production"] = payload.get("video_production", {})

@@ -349,6 +349,22 @@ Yesterday the business did not improve because ...
 
 If measurable customer-acquisition improvement cannot be proven, the brief must say that directly and make the highest priority discovering why.
 
+The AI CMO must never leave the CEO with a bare `Unavailable` row. Missing data must be converted into executive measurement:
+
+- Why the signal is missing.
+- Business impact of the missing signal.
+- Automatic action the AI is taking.
+- Expected review or completion time.
+- Confidence level.
+
+The system uses three evidence levels:
+
+1. Verified internal data: WhatsApp, Meta, CRM, website analytics, and revenue systems.
+2. Public platform signals: published post proof, engagement, competitor activity, search trends.
+3. Clearly labeled hypotheses: low-confidence decisions used to keep operating while measurement improves.
+
+If internal data is missing, the AI CMO must keep operating with the best available evidence, label confidence, and improve instrumentation. It must not become a passive reporter whose main message is `Unavailable`.
+
 The first operating KPI is:
 
 ```text
@@ -513,6 +529,7 @@ Internal tasks are not user tasks. They should not clutter the CEO brief.
 
 The CEO brief should be readable in under 90 seconds and include only executive-decision content:
 
+- Executive Decision: one short paragraph explaining whether business performance improved, why, what decision comes next, when the AI will decide, and the biggest blocker.
 - Executive Scoreboard: business health, marketing health, revenue momentum, pipeline, booked demos, new customers, revenue, ROI, confidence, and business autonomy.
 - Executive Summary: maximum five bullets focused on business outcome.
 - Yesterday: completed work only when evidence exists.
@@ -527,6 +544,15 @@ The CEO brief should be readable in under 90 seconds and include only executive-
 If `executed_actions_today` is `none`, the CEO brief should say that no external execution completed and report only blocked/failed execution that matters. The brief must never start with `I published`, `I prepared`, or infrastructure status. It must never use `ready`, `prepared`, or `queued` as CEO-facing accomplishment language.
 
 The Executive OS is not evaluated by activities. It is evaluated by measurable business improvement. Every morning the AI must prove that the probability of acquiring another paying customer increased. If it cannot prove that, its highest priority is discovering why.
+
+Every brief must also answer:
+
+- What improved?
+- Why?
+- What got worse?
+- What are we changing?
+- What do we expect tomorrow?
+- How will we know if we were right?
 
 ## Marketing Department Executors
 

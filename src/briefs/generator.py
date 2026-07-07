@@ -16,6 +16,7 @@ EXECUTIVE_DECISION_STARTS = (
     "Yesterday the business did not improve because",
 )
 EXECUTIVE_DECISION_REQUIRED_MARKERS = (
+    "Executive Decision",
     "EXECUTIVE SCOREBOARD",
     "Executive Summary",
     "Yesterday",
@@ -82,7 +83,7 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
@@ -91,6 +92,9 @@ Hard rules:
 - Never optimize activity. Always optimize customer acquisition.
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
+- Never leave the CEO with a bare "Unavailable" row. If data is unavailable, include: why, business impact, automatic action, expected review/completion, and confidence.
+- Use three evidence levels: verified internal data, public platform signals, and clearly labeled hypotheses. If verified internal data is missing, keep operating with the best available evidence and label confidence.
+- The brief must answer these measurement questions: What improved? Why? What got worse? What are we changing? What do we expect tomorrow? How will we know if we were right?
 - Clearly separate real data, mock data, unavailable data, completed execution, blocked execution, failed execution, and next automatic retry.
 - The brief is not an activity log. It is an executive dashboard.
 - The CEO should be able to read it in under 90 seconds and immediately understand: business health, measurable value, yesterday, today, next action, biggest opportunity, and biggest risk.
@@ -119,55 +123,68 @@ Hard rules:
 
 Keep the CEO brief concise. Use these sections in this order:
 0. Mandatory opening sentence: "Yesterday the business became healthier because ..." or "Yesterday the business did not improve because ...".
-1. EXECUTIVE SCOREBOARD:
+1. Executive Decision:
+   - Exactly one short paragraph.
+   - Use `executive_measurement.executive_decision.paragraph`.
+   - Explain what happened, whether the business is closer to a customer, what decision is next, when the AI will decide, and the biggest measurement blocker.
+2. EXECUTIVE SCOREBOARD:
    - No paragraphs.
    - Numbers/status only.
    - Include Business Health, Marketing Health, Revenue Momentum, Pipeline, Booked Demos, New Customers, Monthly Revenue, Marketing ROI, Today's Confidence, Business Autonomy, and Status.
-   - Use "No verified data available yet" or "Unavailable" when the number is not verified.
-2. Executive Summary:
+   - Business Health must never be unavailable. Use `executive_measurement.business_health.score`, status, reason, and trend.
+   - Use "No verified data available yet" only for unverified numeric KPIs, and explain why in the relevant intelligence section.
+3. Executive Summary:
    - Maximum five bullets.
    - Business outcome first, not activity first.
-3. Yesterday:
+4. Yesterday:
    - Created, Published, Promoted, Website changes, Videos, Images, Emails, Campaigns, PRs, Competitor analysis, Learning completed.
    - Every completed line must include evidence or say none completed.
-4. Results:
+5. Results:
    - Instagram, WhatsApp clicks, website visits, conversion, demo requests, booked demos, customers, revenue.
    - Compare to yesterday, last week, and average only when real data exists.
-5. Business Funnel:
+   - If a result is missing, explain why, business impact, automatic action, expected review/completion, and confidence.
+6. Business Funnel:
    - Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
    - For each step show Current, Yesterday, Change, Target, Conversion, Bottleneck.
    - Highlight the bottleneck automatically.
-6. Content Intelligence:
+7. Content Intelligence:
    - Score every published asset when verified data exists.
    - Include Business Value Score, Creative Score, Conversion Score, Expected ROI, Recommendation, and Reason.
-7. Campaign Intelligence:
+   - If the post is under review, use `executive_measurement.instagram_performance`: published time, current metrics, reason metrics are missing, automatic action, review time, and recommendation.
+8. Campaign Intelligence:
    - Show organic/running status, spend, CTR, CPC, WhatsApp, qualified, demos, customers, recommendation, expected ROI.
-   - If unavailable, say unavailable.
-8. Website Intelligence:
+   - If Meta is unavailable, show `executive_measurement.campaign_if_available.campaign_to_launch`: audience, budget, objective, expected CPL, stop rule, schedule, and why it is blocked.
+9. Website Intelligence:
    - Visitors, conversion, CTA clicks, most viewed page, worst page, bounce, top search query, recommendation, and whether to open a PR.
-9. Competitor Intelligence:
+10. Competitor Intelligence:
    - Analyzed, top campaign, opportunity, threat, recommended response. If not connected, say unavailable.
-10. WhatsApp Intelligence:
+   - If not connected, say what public/platform signal will be used until competitor monitoring exists.
+11. WhatsApp Intelligence:
    - Conversations, qualified, demo requests, booked, closed, lost, most common objection, response quality, average response time, recommendation.
-11. Decision Ledger:
+   - If missing, use `executive_measurement.whatsapp_measurement`: status, business impact, automatic action, expected completion, confidence.
+12. Decision Ledger:
    - Today's decisions, reason, expected outcome, and how success will be measured.
-12. Currently Working:
+13. Currently Working:
    - Only real work in progress. No fake progress, no "ready", no "prepared", no "queued".
-13. Self Evaluation:
+   - Use `executive_measurement.today_operating_work` for what the AI is doing today while Rami is working.
+14. Self Evaluation:
    - Yesterday's prediction, result, prediction confidence, learning, and whether a Business Memory rule was added.
-14. Business Memory:
+   - If evidence is pending, say when the prediction will be reviewed and what changes if it is wrong.
+15. Business Memory:
    - New learning only. If none is verified, say none verified.
-15. Budget:
+16. Budget:
    - Daily, spent, remaining, monthly, spent, remaining, forecast. If spend is not verified, say unavailable.
-16. Opportunity Ranking:
+   - If spend is unavailable, explain what decision will be made once Budget Guard has verified data.
+17. Opportunity Ranking:
    - The most important section. Rank today's opportunities by expected customer-acquisition impact and confidence.
-17. Risks:
+   - Do not list the mission as the opportunity. Use `executive_measurement.opportunity`.
+18. Risks:
    - Real business risks and mitigations.
-18. Executive Calendar:
+19. Executive Calendar:
    - Today only. Show what the AI will do and when, using local Israel time.
-19. Proof:
+20. Proof:
    - Evidence IDs/URLs/hashes for every completed action.
-20. CEO Question:
+21. CEO Question:
    - End with exactly one sentence: "If I were the CEO today, I would focus on: ___ because ___."
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
@@ -342,7 +359,8 @@ def generate_brief(
                             "Rewrite the brief to satisfy the Executive Decision Brief contract. "
                             f"Validation failed: {exc}. "
                             "Start with the mandatory business-health sentence, include all required "
-                            "executive sections, avoid activity-log language, and use only verified data."
+                            "executive sections, avoid activity-log language, never use bare unavailable rows, "
+                            "and use only verified data or clearly labeled lower-confidence evidence."
                         ),
                     },
                 ]
@@ -399,6 +417,16 @@ def validate_executive_decision_brief_style(brief: str) -> None:
         raise RuntimeError(
             "English CEO brief contains forbidden activity/infrastructure language: "
             + ", ".join(forbidden)
+        )
+
+    bare_unavailable = [
+        line.strip()
+        for line in brief.splitlines()
+        if line.strip().lower() in {"unavailable", "unavailable."}
+    ]
+    if bare_unavailable:
+        raise RuntimeError(
+            "English CEO brief contains bare unavailable rows. Explain why, impact, action, timing, and confidence."
         )
 
     missing = [

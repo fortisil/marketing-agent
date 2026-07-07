@@ -211,6 +211,26 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(payload["content_intelligence"]["status"], "unavailable")
         self.assertIsNone(payload["content_intelligence"]["business_value_score"])
         self.assertIn("stop_continue_improve_scale", payload["growth_intelligence"])
+        self.assertIn("executive_decision", payload["executive_measurement"])
+        self.assertIn("business_health", payload["executive_measurement"])
+        self.assertIsInstance(payload["executive_measurement"]["business_health"]["score"], int)
+        self.assertNotEqual(payload["executive_measurement"]["business_health"]["status"], "unavailable")
+        self.assertIn("measurement_questions", payload["executive_measurement"])
+        self.assertEqual(
+            payload["executive_measurement"]["whatsapp_measurement"]["status"],
+            "no_production_webhook_connected",
+        )
+        self.assertIn("business_impact", payload["executive_measurement"]["whatsapp_measurement"])
+        self.assertIn("automatic_action", payload["executive_measurement"]["whatsapp_measurement"])
+        self.assertIn("expected_completion", payload["executive_measurement"]["whatsapp_measurement"])
+        self.assertEqual(
+            payload["executive_measurement"]["campaign_if_available"]["campaign_to_launch"]["budget"],
+            "₪20/day",
+        )
+        self.assertNotEqual(
+            payload["executive_measurement"]["opportunity"]["highest"],
+            "Generate one additional paying customer.",
+        )
         self.assertEqual(payload["promotion_brain"]["decision"], "pause")
         self.assertEqual(payload["promotion_brain"]["status"], "blocked")
         self.assertIn("spend_reconciliation", payload["budget_guard"]["failed_rules"])
@@ -235,6 +255,7 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("budget_status", context.summary)
         self.assertIn("content_intelligence", context.summary)
         self.assertIn("growth_intelligence", context.summary)
+        self.assertIn("executive_measurement", context.summary)
         self.assertIn("promotion_brain", context.summary)
         self.assertIn("budget_guard", context.summary)
         self.assertIn("connector_health", context.summary)

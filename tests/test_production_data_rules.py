@@ -181,8 +181,14 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("Yesterday the business did not improve because", prompt)
         self.assertIn("The Executive OS is not evaluated by activities", prompt)
         self.assertIn("Every morning the AI must prove that the probability of acquiring another paying customer increased", prompt)
+        self.assertIn("executive_measurement", prompt)
+        self.assertIn("Never leave the CEO with a bare \"Unavailable\" row", prompt)
+        self.assertIn("Use three evidence levels", prompt)
+        self.assertIn("What improved? Why? What got worse?", prompt)
+        self.assertIn("Executive Decision", prompt)
         self.assertIn("Are we closer to another paying customer than we were yesterday?", prompt)
         self.assertIn("EXECUTIVE SCOREBOARD", prompt)
+        self.assertIn("Business Health must never be unavailable", prompt)
         self.assertIn("Business Funnel", prompt)
         self.assertIn("Content Intelligence", prompt)
         self.assertIn("Campaign Intelligence", prompt)
@@ -191,6 +197,7 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("WhatsApp Intelligence", prompt)
         self.assertIn("Decision Ledger", prompt)
         self.assertIn("Opportunity Ranking", prompt)
+        self.assertIn("Do not list the mission as the opportunity", prompt)
         self.assertIn("Executive Calendar", prompt)
         self.assertIn("If I were the CEO today", prompt)
         self.assertIn("No paragraphs", prompt)
@@ -237,12 +244,15 @@ class ProductionDataRulesTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "business-health sentence"):
             validate_executive_decision_brief_style(brief)
 
-    def test_executive_decision_brief_validator_accepts_business_first_brief(self) -> None:
+    def test_executive_decision_brief_validator_rejects_bare_unavailable_rows(self) -> None:
         brief = """
 Yesterday the business did not improve because no verified customer-acquisition outcome was available yet.
 
+## Executive Decision
+No decision can be made until the missing signal is reviewed.
+
 ## EXECUTIVE SCOREBOARD
-Business Health ............. No verified data available yet
+Business Health ............. 64
 
 ## Executive Summary
 - No verified data available yet.
@@ -251,22 +261,92 @@ Business Health ............. No verified data available yet
 None completed with proof.
 
 ## Results
-No verified data available yet.
+Unavailable
 
 ## Business Funnel
 Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
 
 ## Content Intelligence
-Unavailable.
+No data because insights are not connected; I will review at 16:00.
 
 ## Campaign Intelligence
-Unavailable.
+Blocked because budget guard lacks verified spend; campaign plan is defined.
 
 ## Website Intelligence
-Unavailable.
+No click data because analytics is not connected; review pending.
 
 ## Competitor Intelligence
-Unavailable.
+No monitor connected; using public platform hypotheses.
+
+## WhatsApp Intelligence
+No webhook connected; waiting for event-log deployment.
+
+## Decision Ledger
+No autonomous spend decision without attribution.
+
+## Currently Working
+Discovering the missing attribution path.
+
+## Self Evaluation
+Yesterday's prediction: unavailable. Result: unavailable.
+
+## Business Memory
+No verified learning added.
+
+## Budget
+Daily: no verified spend; guard blocks promotion.
+
+## Opportunity Ranking
+1. Founder video because it has highest predicted conversion.
+
+## Risks
+Closed-loop attribution missing.
+
+## Executive Calendar
+09:00 Review verified data availability.
+
+## Proof
+No completed action proof available.
+
+If I were the CEO today, I would focus on: attribution because it tells us which action creates paying customers.
+"""
+
+        with self.assertRaisesRegex(RuntimeError, "bare unavailable"):
+            validate_executive_decision_brief_style(brief)
+
+    def test_executive_decision_brief_validator_accepts_business_first_brief(self) -> None:
+        brief = """
+Yesterday the business did not improve because no verified customer-acquisition outcome was available yet.
+
+## Executive Decision
+Yesterday no measurable customer-acquisition result was proven; today I will remove the measurement blocker and review the decision again by 16:00.
+
+## EXECUTIVE SCOREBOARD
+Business Health ............. 64 / 100, requires attention
+
+## Executive Summary
+- No verified data available yet.
+
+## Yesterday
+None completed with proof.
+
+## Results
+No verified data available yet because attribution is not connected; business impact is unknown conversion; automatic action is to connect attribution and review by 16:00; confidence 64%.
+
+## Business Funnel
+Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
+
+## Content Intelligence
+No verified post-performance data because Instagram Insights is not connected; continue monitoring and review in 6 hours.
+
+## Campaign Intelligence
+Campaign is blocked by budget guard; if Meta becomes available launch Israeli law-firm WhatsApp objective at ₪20/day with ₪80 stop rule.
+
+## Website Intelligence
+No verified click data because website analytics is not connected; review CTA path and open a PR if friction is found.
+
+## Competitor Intelligence
+No competitor monitor connected; use public platform hypotheses until monitoring exists.
 
 ## WhatsApp Intelligence
 No verified WhatsApp event data available.
