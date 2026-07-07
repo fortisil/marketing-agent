@@ -18,6 +18,7 @@ EXECUTIVE_DECISION_STARTS = (
 EXECUTIVE_DECISION_REQUIRED_MARKERS = (
     "Executive Decision",
     "EXECUTIVE SCOREBOARD",
+    "Manager Performance",
     "Executive Summary",
     "Yesterday",
     "Results",
@@ -83,12 +84,17 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `operating_executive`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
 - The Executive OS is not evaluated by activities. It is evaluated by measurable business improvement.
 - Every morning the AI must prove that the probability of acquiring another paying customer increased. If it cannot prove that, its highest priority is discovering why.
+- The AI is no longer evaluated by reports, activities, completed tasks, or generated content. It is evaluated by: "Did it manage the business today?"
+- Every department manager permanently owns business assets. Never present them as temporary task owners.
+- Use `operating_executive.manager_reports` as the management-team source of truth. Every manager must report current status, business objective, current KPI, trend, risk, decision, and next review.
+- Use `operating_executive.internal_budget_ledger` as authoritative. Never write that the budget is unavailable. Meta only reconciles the internal ledger.
+- Use `operating_executive.campaign_registry`, `content_registry`, `competitor_registry`, `whatsapp_intelligence`, `website_management`, `executive_memory`, and `self_management` to show permanent ownership and continuity.
 - Never optimize activity. Always optimize customer acquisition.
 - Never invent KPI numbers.
 - If a metric has `source: unavailable` or `verified: false`, write "No verified data available yet" instead of a number.
@@ -133,58 +139,72 @@ Keep the CEO brief concise. Use these sections in this order:
    - Include Business Health, Marketing Health, Revenue Momentum, Pipeline, Booked Demos, New Customers, Monthly Revenue, Marketing ROI, Today's Confidence, Business Autonomy, and Status.
    - Business Health must never be unavailable. Use `executive_measurement.business_health.score`, status, reason, and trend.
    - Use "No verified data available yet" only for unverified numeric KPIs, and explain why in the relevant intelligence section.
-3. Executive Summary:
+3. Manager Performance:
+   - The CEO should feel like reading reports from an executive team, not software logs.
+   - Use `operating_executive.manager_reports`.
+   - Include Social Manager, Ads Manager, Analytics Manager, Website Manager, Creative Director, and Growth Manager.
+   - For each manager show: Status, Business Objective, Current KPI, Trend, Risk, Decision, Next Review.
+   - Highlight which managers performed well and which need attention.
+4. Executive Summary:
    - Maximum five bullets.
    - Business outcome first, not activity first.
-4. Yesterday:
+5. Yesterday:
    - Created, Published, Promoted, Website changes, Videos, Images, Emails, Campaigns, PRs, Competitor analysis, Learning completed.
    - Every completed line must include evidence or say none completed.
-5. Results:
+6. Results:
    - Instagram, WhatsApp clicks, website visits, conversion, demo requests, booked demos, customers, revenue.
    - Compare to yesterday, last week, and average only when real data exists.
    - If a result is missing, explain why, business impact, automatic action, expected review/completion, and confidence.
-6. Business Funnel:
+7. Business Funnel:
    - Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
    - For each step show Current, Yesterday, Change, Target, Conversion, Bottleneck.
    - Highlight the bottleneck automatically.
-7. Content Intelligence:
+8. Content Intelligence:
    - Score every published asset when verified data exists.
    - Include Business Value Score, Creative Score, Conversion Score, Expected ROI, Recommendation, and Reason.
    - If the post is under review, use `executive_measurement.instagram_performance`: published time, current metrics, reason metrics are missing, automatic action, review time, and recommendation.
-8. Campaign Intelligence:
+   - Use `operating_executive.content_registry` for lifecycle: Published, Measured, Ranked, Promoted, Retired, Learning, Business Value Score.
+9. Campaign Intelligence:
    - Show organic/running status, spend, CTR, CPC, WhatsApp, qualified, demos, customers, recommendation, expected ROI.
    - If Meta is unavailable, show `executive_measurement.campaign_if_available.campaign_to_launch`: audience, budget, objective, expected CPL, stop rule, schedule, and why it is blocked.
-9. Website Intelligence:
+   - Use `operating_executive.campaign_registry`. Never write "Campaign unavailable"; show registry status, status reason, and next campaign decision.
+10. Website Intelligence:
    - Visitors, conversion, CTA clicks, most viewed page, worst page, bounce, top search query, recommendation, and whether to open a PR.
-10. Competitor Intelligence:
+   - Use `operating_executive.website_management`.
+11. Competitor Intelligence:
    - Analyzed, top campaign, opportunity, threat, recommended response. If not connected, say unavailable.
    - If not connected, say what public/platform signal will be used until competitor monitoring exists.
-11. WhatsApp Intelligence:
+   - Use `operating_executive.competitor_registry`.
+12. WhatsApp Intelligence:
    - Conversations, qualified, demo requests, booked, closed, lost, most common objection, response quality, average response time, recommendation.
    - If missing, use `executive_measurement.whatsapp_measurement`: status, business impact, automatic action, expected completion, confidence.
-12. Decision Ledger:
+   - Use `operating_executive.whatsapp_intelligence` for intent, objections, drop-offs, booking quality, lead quality, lost reasons, and recommendation.
+13. Decision Ledger:
    - Today's decisions, reason, expected outcome, and how success will be measured.
-13. Currently Working:
+14. Currently Working:
    - Only real work in progress. No fake progress, no "ready", no "prepared", no "queued".
    - Use `executive_measurement.today_operating_work` for what the AI is doing today while Rami is working.
-14. Self Evaluation:
+   - Use `operating_executive.self_management.manager_actions` to show what will happen automatically today.
+15. Self Evaluation:
    - Yesterday's prediction, result, prediction confidence, learning, and whether a Business Memory rule was added.
    - If evidence is pending, say when the prediction will be reviewed and what changes if it is wrong.
-15. Business Memory:
+16. Business Memory:
    - New learning only. If none is verified, say none verified.
-16. Budget:
-   - Daily, spent, remaining, monthly, spent, remaining, forecast. If spend is not verified, say unavailable.
-   - If spend is unavailable, explain what decision will be made once Budget Guard has verified data.
-17. Opportunity Ranking:
+   - Use `operating_executive.executive_memory` for campaigns, experiments, insights, failures, successful strategies, creative patterns, promotion history, and budget history.
+17. Budget:
+   - Use `operating_executive.internal_budget_ledger`.
+   - Show Monthly budget, Reserved, Committed, Spent, Forecast, Remaining, per campaign, per experiment, and per asset.
+   - Budget is internally authoritative even when Meta reconciliation is pending.
+18. Opportunity Ranking:
    - The most important section. Rank today's opportunities by expected customer-acquisition impact and confidence.
    - Do not list the mission as the opportunity. Use `executive_measurement.opportunity`.
-18. Risks:
+19. Risks:
    - Real business risks and mitigations.
-19. Executive Calendar:
+20. Executive Calendar:
    - Today only. Show what the AI will do and when, using local Israel time.
-20. Proof:
+21. Proof:
    - Evidence IDs/URLs/hashes for every completed action.
-21. CEO Question:
+22. CEO Question:
    - End with exactly one sentence: "If I were the CEO today, I would focus on: ___ because ___."
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.

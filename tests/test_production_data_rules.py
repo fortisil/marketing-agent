@@ -182,10 +182,17 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("The Executive OS is not evaluated by activities", prompt)
         self.assertIn("Every morning the AI must prove that the probability of acquiring another paying customer increased", prompt)
         self.assertIn("executive_measurement", prompt)
+        self.assertIn("operating_executive", prompt)
         self.assertIn("Never leave the CEO with a bare \"Unavailable\" row", prompt)
+        self.assertIn("Did it manage the business today?", prompt)
+        self.assertIn("Every department manager permanently owns business assets", prompt)
+        self.assertIn("operating_executive.manager_reports", prompt)
+        self.assertIn("operating_executive.internal_budget_ledger", prompt)
+        self.assertIn("Budget is internally authoritative", prompt)
         self.assertIn("Use three evidence levels", prompt)
         self.assertIn("What improved? Why? What got worse?", prompt)
         self.assertIn("Executive Decision", prompt)
+        self.assertIn("Manager Performance", prompt)
         self.assertIn("Are we closer to another paying customer than we were yesterday?", prompt)
         self.assertIn("EXECUTIVE SCOREBOARD", prompt)
         self.assertIn("Business Health must never be unavailable", prompt)
@@ -253,6 +260,9 @@ No decision can be made until the missing signal is reviewed.
 
 ## EXECUTIVE SCOREBOARD
 Business Health ............. 64
+
+## Manager Performance
+Social Manager: status monitoring; KPI pending; next review 16:00.
 
 ## Executive Summary
 - No verified data available yet.
@@ -323,6 +333,14 @@ Yesterday no measurable customer-acquisition result was proven; today I will rem
 
 ## EXECUTIVE SCOREBOARD
 Business Health ............. 64 / 100, requires attention
+
+## Manager Performance
+Social Manager: monitoring Instagram and Facebook; KPI Business Value Score 62; next review 16:00.
+Ads Manager: owns Meta Ads, Budget, Campaigns; decision hold spend until guardrails pass.
+Analytics Manager: owns attribution; risk no closed-loop measurement.
+Website Manager: owns homepage and CTA conversion.
+Creative Director: owns creative quality.
+Growth Manager: owns opportunity ranking.
 
 ## Executive Summary
 - No verified data available yet.

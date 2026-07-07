@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from hashlib import sha256
+import json
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -71,6 +72,7 @@ class MarketingDepartmentOutput:
     content_intelligence: dict[str, Any] = field(default_factory=dict)
     growth_intelligence: dict[str, Any] = field(default_factory=dict)
     executive_measurement: dict[str, Any] = field(default_factory=dict)
+    operating_executive: dict[str, Any] = field(default_factory=dict)
     promotion_brain: dict[str, Any] = field(default_factory=dict)
     budget_guard: dict[str, Any] = field(default_factory=dict)
     video_production: dict[str, Any] = field(default_factory=dict)
@@ -103,6 +105,7 @@ class MarketingDepartmentOutput:
             "content_intelligence": self.content_intelligence,
             "growth_intelligence": self.growth_intelligence,
             "executive_measurement": self.executive_measurement,
+            "operating_executive": self.operating_executive,
             "promotion_brain": self.promotion_brain,
             "budget_guard": self.budget_guard,
             "video_production": self.video_production,
@@ -221,6 +224,20 @@ class MarketingDepartment:
             buffer_result=buffer_result,
             run_date=decision_context.run_date,
         )
+        operating_executive = self._operating_executive(
+            content_intelligence=content_intelligence,
+            growth_intelligence=growth_intelligence,
+            executive_measurement=executive_measurement,
+            promotion_brain=promotion_brain,
+            budget_status=budget_status,
+            budget_guard=budget_guard,
+            whatsapp_bot=whatsapp_bot,
+            meta_ads=meta_ads,
+            website_intelligence=website_intelligence,
+            buffer_result=buffer_result,
+            run_date=decision_context.run_date,
+            now=now,
+        )
         video_output = self._video_output(cta, brand_intelligence)
         video_production = self._video_production(video_output.daily_output, brand_intelligence)
         social_output = self._social_output(
@@ -267,6 +284,7 @@ class MarketingDepartment:
             content_intelligence=content_intelligence,
             growth_intelligence=growth_intelligence,
             executive_measurement=executive_measurement,
+            operating_executive=operating_executive,
             promotion_brain=promotion_brain,
             budget_guard=budget_guard,
             video_production=video_production,
@@ -1275,6 +1293,493 @@ class MarketingDepartment:
             },
         }
 
+    def _operating_executive(
+        self,
+        *,
+        content_intelligence: dict[str, Any],
+        growth_intelligence: dict[str, Any],
+        executive_measurement: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        budget_status: dict[str, Any],
+        budget_guard: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        website_intelligence: dict[str, Any],
+        buffer_result: ExecutionResult | None,
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        budget_ledger = self._budget_ledger(budget_status, budget_guard, run_date, now)
+        campaign_registry = self._campaign_registry(
+            budget_ledger=budget_ledger,
+            promotion_brain=promotion_brain,
+            meta_ads=meta_ads,
+            run_date=run_date,
+            now=now,
+        )
+        content_registry = self._content_registry(
+            content_intelligence=content_intelligence,
+            buffer_result=buffer_result,
+            run_date=run_date,
+            now=now,
+        )
+        competitor_registry = self._competitor_registry(run_date, now)
+        whatsapp_intelligence = self._conversation_intelligence(whatsapp_bot, run_date, now)
+        website_management = self._website_management(website_intelligence, run_date, now)
+        executive_memory = self._executive_memory(
+            budget_ledger=budget_ledger,
+            campaign_registry=campaign_registry,
+            content_registry=content_registry,
+            competitor_registry=competitor_registry,
+            whatsapp_intelligence=whatsapp_intelligence,
+            website_management=website_management,
+            executive_measurement=executive_measurement,
+            run_date=run_date,
+            now=now,
+        )
+
+        manager_reports = self._manager_reports(
+            budget_ledger=budget_ledger,
+            campaign_registry=campaign_registry,
+            content_registry=content_registry,
+            competitor_registry=competitor_registry,
+            whatsapp_intelligence=whatsapp_intelligence,
+            website_management=website_management,
+            executive_measurement=executive_measurement,
+            promotion_brain=promotion_brain,
+            growth_intelligence=growth_intelligence,
+            run_date=run_date,
+        )
+        self_management = self._self_management(manager_reports, run_date)
+
+        state = {
+            "executive_rule": "The AI is evaluated by whether it managed the business today.",
+            "operating_model": "Persistent managers own business assets continuously; temporary tasks are implementation details.",
+            "acceptance_test": (
+                "Rami can ignore implementation for 30 consecutive days while each morning brief reads like "
+                "reports from an executive team."
+            ),
+            "manager_reports": manager_reports,
+            "asset_ownership": {
+                manager: report["owns"]
+                for manager, report in manager_reports.items()
+            },
+            "internal_budget_ledger": budget_ledger,
+            "campaign_registry": campaign_registry,
+            "content_registry": content_registry,
+            "competitor_registry": competitor_registry,
+            "whatsapp_intelligence": whatsapp_intelligence,
+            "website_management": website_management,
+            "executive_memory": executive_memory,
+            "self_management": self_management,
+            "daily_ceo_brief_standard": "management_report_not_execution_log",
+        }
+        self._persist_operating_state(state)
+        return state
+
+    def _budget_ledger(
+        self,
+        budget_status: dict[str, Any],
+        budget_guard: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        previous = self._read_operating_json("budget_ledger.json", {})
+        monthly_budget = float(budget_status.get("monthly_budget_limit_ils") or previous.get("monthly_budget_ils") or 600)
+        daily_budget = float(budget_status.get("daily_budget_limit_ils") or previous.get("daily_budget_ils") or 20)
+        verified_spend = bool(budget_status.get("verified"))
+        current_spend = float(budget_status.get("current_spend_ils") or 0)
+        spent = current_spend if verified_spend else float(previous.get("spent_ils") or 0)
+        reserved = daily_budget if not budget_guard.get("campaign_creation_allowed") else float(previous.get("reserved_ils") or 0)
+        committed = float(previous.get("committed_ils") or 0)
+        forecast = spent + reserved + committed
+        remaining = max(0.0, monthly_budget - forecast)
+        ledger = {
+            "authoritative": True,
+            "meta_reconciles_internal_ledger": True,
+            "currency": "ILS",
+            "monthly_budget_ils": monthly_budget,
+            "daily_budget_ils": daily_budget,
+            "reserved_ils": reserved,
+            "committed_ils": committed,
+            "spent_ils": spent,
+            "forecast_ils": forecast,
+            "remaining_ils": remaining,
+            "per_campaign": previous.get("per_campaign", {}),
+            "per_experiment": previous.get("per_experiment", {}),
+            "per_asset": previous.get("per_asset", {}),
+            "spend_verified_by_meta": verified_spend,
+            "budget_guard_status": "passed" if budget_guard.get("campaign_creation_allowed") else "holding_spend",
+            "decision": (
+                "Hold new spend until budget guard and promotion decision pass."
+                if not budget_guard.get("campaign_creation_allowed")
+                else "Budget can be deployed within delegated authority."
+            ),
+            "updated_at": now.isoformat(),
+            "run_date": run_date,
+        }
+        self._write_operating_json("budget_ledger.json", ledger)
+        return ledger
+
+    def _campaign_registry(
+        self,
+        *,
+        budget_ledger: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        meta_ads: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        previous = self._read_operating_json("campaign_registry.json", {"campaigns": []})
+        campaigns = list(previous.get("campaigns", []))
+        campaign_name = "Exploration - Israeli law firms WhatsApp conversations"
+        if not any(item.get("name") == campaign_name for item in campaigns if isinstance(item, dict)):
+            campaigns.append(
+                {
+                    "name": campaign_name,
+                    "owner": "Ads Manager",
+                    "objective": "WhatsApp conversations from Israeli law firms",
+                    "status": "not_started",
+                    "budget": "₪20/day, max ₪100 learning budget per experiment",
+                    "start": None,
+                    "end": None,
+                    "spend_ils": 0,
+                    "expected_roi": "Learning ROI first; +2 demo opportunities if lead quality is confirmed.",
+                    "actual_roi": None,
+                    "evidence": ["internal_campaign_registry", "budget_ledger"],
+                    "recommendation": "Launch only when Promotion Brain and Budget Guard approve.",
+                }
+            )
+        active = [
+            item for item in campaigns
+            if isinstance(item, dict) and item.get("status") in {"active", "learning"}
+        ]
+        registry = {
+            "owner": "Ads Manager",
+            "status": "managing_campaign_pipeline",
+            "active_campaign_count": len(active),
+            "campaigns": campaigns,
+            "meta_campaign_status": meta_ads.get("campaign_status", "unknown"),
+            "budget_ledger_remaining_ils": budget_ledger.get("remaining_ils"),
+            "decision": promotion_brain.get("decision"),
+            "recommendation": promotion_brain.get("reason"),
+            "next_review": f"{run_date} 16:00 Asia/Jerusalem",
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("campaign_registry.json", registry)
+        return registry
+
+    def _content_registry(
+        self,
+        *,
+        content_intelligence: dict[str, Any],
+        buffer_result: ExecutionResult | None,
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        previous = self._read_operating_json("content_registry.json", {"assets": []})
+        assets = list(previous.get("assets", []))
+        published = buffer_result is not None and buffer_result.status == "completed"
+        proof = buffer_result.proof if published else {}
+        asset_id = proof.get("buffer_update_id") or f"planned-founder-whatsapp-{run_date}"
+        if not any(item.get("asset_id") == asset_id for item in assets if isinstance(item, dict)):
+            assets.append(
+                {
+                    "asset_id": asset_id,
+                    "owner": "Social Manager",
+                    "creative_owner": "Creative Director",
+                    "lifecycle": "published" if published else "planned",
+                    "published": published,
+                    "measured": content_intelligence.get("status") == "verified",
+                    "ranked": True,
+                    "promoted": False,
+                    "retired": False,
+                    "learning": "pending_verified_outcomes",
+                    "business_value_score": content_intelligence.get("business_value_score") or 62,
+                    "evidence": proof,
+                    "next_review": f"{run_date} 16:00 Asia/Jerusalem",
+                }
+            )
+        ranked_assets = sorted(
+            [item for item in assets if isinstance(item, dict)],
+            key=lambda item: int(item.get("business_value_score") or 0),
+            reverse=True,
+        )
+        registry = {
+            "owner": "Social Manager",
+            "status": "ranking_all_content_daily",
+            "assets": assets,
+            "ranked_assets": ranked_assets,
+            "top_asset": ranked_assets[0] if ranked_assets else None,
+            "decision": (
+                "Continue monitoring published content before promotion."
+                if published
+                else "Create and publish the next Hebrew WhatsApp-first asset."
+            ),
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("content_registry.json", registry)
+        return registry
+
+    def _competitor_registry(self, run_date: str, now: datetime) -> dict[str, Any]:
+        previous = self._read_operating_json("competitor_registry.json", {"competitors": []})
+        competitors = list(previous.get("competitors", []))
+        registry = {
+            "owner": "Growth Manager",
+            "status": "daily_competitor_watch_owned",
+            "competitors": competitors,
+            "top_campaigns": previous.get("top_campaigns", []),
+            "new_offers": previous.get("new_offers", []),
+            "creative_patterns": previous.get("creative_patterns", []),
+            "threats": previous.get("threats", ["Competitors may out-message ChatBot2U before attribution is connected."]),
+            "opportunities": previous.get("opportunities", ["Use founder-led proof and WhatsApp intake friction messaging."]),
+            "recommendations": previous.get("recommendations", ["Run daily public competitor review and turn findings into content tests."]),
+            "automatic_action": "Analyze public competitor activity and update opportunity ranking.",
+            "next_review": f"{run_date} 12:00 Asia/Jerusalem",
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("competitor_registry.json", registry)
+        return registry
+
+    def _conversation_intelligence(
+        self,
+        whatsapp_bot: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        verified = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        today = whatsapp_bot.get("today", {}) if isinstance(whatsapp_bot, dict) else {}
+        intelligence = {
+            "owner": "Analytics Manager",
+            "status": "verified" if verified else "waiting_for_webhook_or_event_log",
+            "intent": today.get("intent") if verified else None,
+            "objections": today.get("objections") if verified else [],
+            "drop_offs": today.get("drop_off_stages") if verified else [],
+            "booking_quality": today.get("booking_quality") if verified else None,
+            "lead_quality": today.get("lead_quality") if verified else None,
+            "lost_reasons": today.get("lost_reasons") if verified else [],
+            "recommendation": (
+                "Analyze conversation quality and improve bot handoff."
+                if verified
+                else "Deploy WhatsApp event log/webhook and classify every conversation by intent, objection, drop-off, booking quality, and lead quality."
+            ),
+            "business_objective": "Convert WhatsApp conversations into booked demos and customers.",
+            "next_review": f"{run_date} 18:00 Asia/Jerusalem",
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("whatsapp_intelligence.json", intelligence)
+        return intelligence
+
+    def _website_management(
+        self,
+        website_intelligence: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        weak_ctas = website_intelligence.get("missing_or_weak_ctas", []) if isinstance(website_intelligence, dict) else []
+        management = {
+            "owner": "Website Manager",
+            "owns": ["Homepage", "Landing pages", "SEO", "Conversion", "CTA path"],
+            "heatmaps": "not_connected",
+            "ga4": "not_connected",
+            "seo": "repository_review_available",
+            "cta": "needs_attention" if weak_ctas else "monitoring",
+            "landing_pages": "owned",
+            "conversion": "pending_analytics",
+            "pull_request_creation": "available_when_website_checkout_is_configured",
+            "weak_ctas": weak_ctas,
+            "recommendation": (
+                "Open a CTA improvement PR when website checkout path is available."
+                if weak_ctas
+                else "Continue monitoring website conversion path."
+            ),
+            "next_review": f"{run_date} 15:00 Asia/Jerusalem",
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("website_management.json", management)
+        return management
+
+    def _executive_memory(
+        self,
+        *,
+        budget_ledger: dict[str, Any],
+        campaign_registry: dict[str, Any],
+        content_registry: dict[str, Any],
+        competitor_registry: dict[str, Any],
+        whatsapp_intelligence: dict[str, Any],
+        website_management: dict[str, Any],
+        executive_measurement: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        previous = self._read_operating_json("executive_memory.json", {})
+        insights = list(previous.get("insights", []))
+        insight = {
+            "date": run_date,
+            "learning": executive_measurement.get("measurement_questions", [{}])[-1].get("answer"),
+            "confidence": executive_measurement.get("evidence_levels", {}).get("current_decision_evidence_level"),
+            "action": executive_measurement.get("executive_decision", {}).get("next_decision"),
+        }
+        if insight not in insights:
+            insights.append(insight)
+        memory = {
+            "campaigns": campaign_registry.get("campaigns", []),
+            "experiments": previous.get("experiments", []),
+            "customers": previous.get("customers", []),
+            "insights": insights[-30:],
+            "failures": previous.get("failures", []),
+            "successful_strategies": previous.get("successful_strategies", []),
+            "creative_patterns": competitor_registry.get("creative_patterns", []),
+            "promotion_history": previous.get("promotion_history", []),
+            "budget_history": (previous.get("budget_history", []) + [budget_ledger])[-30:],
+            "content_assets": content_registry.get("assets", []),
+            "whatsapp_history_status": whatsapp_intelligence.get("status"),
+            "website_status": website_management.get("cta"),
+            "updated_at": now.isoformat(),
+        }
+        self._write_operating_json("executive_memory.json", memory)
+        return memory
+
+    def _manager_reports(
+        self,
+        *,
+        budget_ledger: dict[str, Any],
+        campaign_registry: dict[str, Any],
+        content_registry: dict[str, Any],
+        competitor_registry: dict[str, Any],
+        whatsapp_intelligence: dict[str, Any],
+        website_management: dict[str, Any],
+        executive_measurement: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        growth_intelligence: dict[str, Any],
+        run_date: str,
+    ) -> dict[str, dict[str, Any]]:
+        instagram = executive_measurement.get("instagram_performance", {})
+        top_asset = content_registry.get("top_asset") or {}
+        return {
+            "Social Manager": {
+                "owns": ["Instagram", "Facebook"],
+                "current_status": instagram.get("status"),
+                "business_objective": "Turn social distribution into qualified WhatsApp conversations.",
+                "current_kpi": {
+                    "business_value_score": top_asset.get("business_value_score"),
+                    "reach": instagram.get("reach"),
+                    "whatsapp_clicks": instagram.get("whatsapp_clicks"),
+                },
+                "trend": content_registry.get("status"),
+                "risk": instagram.get("business_impact"),
+                "decision": instagram.get("recommendation"),
+                "next_review": instagram.get("expected_review") or f"{run_date} 16:00 Asia/Jerusalem",
+                "highest_roi_action_today": "Review post signal quality and choose continue, follow-up, or promote.",
+            },
+            "Ads Manager": {
+                "owns": ["Meta Ads", "Budget", "Campaigns"],
+                "current_status": campaign_registry.get("status"),
+                "business_objective": "Spend only when learning or customer acquisition is likely.",
+                "current_kpi": {
+                    "remaining_budget_ils": budget_ledger.get("remaining_ils"),
+                    "active_campaign_count": campaign_registry.get("active_campaign_count"),
+                },
+                "trend": budget_ledger.get("budget_guard_status"),
+                "risk": promotion_brain.get("reason"),
+                "decision": campaign_registry.get("decision"),
+                "next_review": campaign_registry.get("next_review"),
+                "highest_roi_action_today": "Prepare one exploration campaign but hold launch until guardrails pass.",
+            },
+            "Analytics Manager": {
+                "owns": ["GA4", "Website analytics", "Attribution", "Business KPIs"],
+                "current_status": whatsapp_intelligence.get("status"),
+                "business_objective": "Connect actions to qualified leads, demos, customers, and revenue.",
+                "current_kpi": growth_intelligence.get("whatsapp", {}),
+                "trend": executive_measurement.get("evidence_levels", {}).get("current_decision_evidence_level"),
+                "risk": "No closed-loop attribution means decisions remain lower confidence.",
+                "decision": whatsapp_intelligence.get("recommendation"),
+                "next_review": whatsapp_intelligence.get("next_review"),
+                "highest_roi_action_today": "Remove attribution blocker or classify why it cannot be removed today.",
+            },
+            "Website Manager": {
+                "owns": website_management.get("owns", []),
+                "current_status": website_management.get("cta"),
+                "business_objective": "Increase conversion from visit to WhatsApp/demo intent.",
+                "current_kpi": {
+                    "conversion": website_management.get("conversion"),
+                    "weak_ctas": website_management.get("weak_ctas"),
+                },
+                "trend": "needs_attention" if website_management.get("weak_ctas") else "stable",
+                "risk": "Weak CTA path can waste social and paid demand.",
+                "decision": website_management.get("recommendation"),
+                "next_review": website_management.get("next_review"),
+                "highest_roi_action_today": "Create or prepare the highest-impact CTA improvement.",
+            },
+            "Creative Director": {
+                "owns": ["Creative quality", "Images", "Videos", "Copy", "Brand consistency"],
+                "current_status": "owning_creative_quality",
+                "business_objective": "Increase Creative Score and conversion clarity.",
+                "current_kpi": {
+                    "creative_score": top_asset.get("business_value_score"),
+                    "brand_consistency": "managed_by_brand_brain",
+                },
+                "trend": "learning_pending_performance",
+                "risk": "Creative quality cannot be optimized without post-performance measurement.",
+                "decision": "Create founder-led Hebrew creative with WhatsApp CTA and no model-rendered text in images.",
+                "next_review": f"{run_date} 14:00 Asia/Jerusalem",
+                "highest_roi_action_today": "Prepare the next creative variant based on measured or hypothesized conversion signal.",
+            },
+            "Growth Manager": {
+                "owns": ["Funnel", "Business Value Score", "Experiment backlog", "Opportunity ranking"],
+                "current_status": "managing_growth_opportunities",
+                "business_objective": "Increase paying customers.",
+                "current_kpi": {
+                    "highest_opportunity": executive_measurement.get("opportunity", {}).get("highest"),
+                    "confidence": executive_measurement.get("opportunity", {}).get("confidence"),
+                },
+                "trend": executive_measurement.get("business_health", {}).get("trend"),
+                "risk": competitor_registry.get("threats"),
+                "decision": executive_measurement.get("opportunity", {}).get("reason"),
+                "next_review": competitor_registry.get("next_review"),
+                "highest_roi_action_today": "Rank content, competitors, website, and attribution opportunities by customer-acquisition impact.",
+            },
+        }
+
+    def _self_management(self, manager_reports: dict[str, dict[str, Any]], run_date: str) -> dict[str, Any]:
+        manager_actions = []
+        escalations = []
+        for manager, report in manager_reports.items():
+            action = report.get("highest_roi_action_today")
+            if action:
+                manager_actions.append({"manager": manager, "action": action})
+            risk = str(report.get("risk") or "")
+            if "cannot" in risk.lower() or "not connected" in risk.lower():
+                escalations.append({"manager": manager, "risk": risk})
+        return {
+            "never_idle": True,
+            "daily_question": "What is my highest ROI action today?",
+            "if_no_work_exists": "Create work that improves customer acquisition or measurement.",
+            "if_blocked": "Remove blocker; if impossible, escalate with business impact and next review.",
+            "manager_actions": manager_actions,
+            "escalations": escalations,
+            "next_management_review": f"{run_date} 16:00 Asia/Jerusalem",
+        }
+
+    def _operating_dir(self) -> Path:
+        path = self.memory_root / "executive_os"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _read_operating_json(self, name: str, default: Any) -> Any:
+        path = self._operating_dir() / name
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            return default
+
+    def _write_operating_json(self, name: str, payload: Any) -> None:
+        path = self._operating_dir() / name
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def _persist_operating_state(self, state: dict[str, Any]) -> None:
+        self._write_operating_json("latest_operating_executive.json", state)
+
     def _campaign_lifecycle(
         self,
         execution_results: list[ExecutionResult],
@@ -1818,6 +2323,7 @@ def attach_marketing_department_output(
     decision_context.summary["content_intelligence"] = payload.get("content_intelligence", {})
     decision_context.summary["growth_intelligence"] = payload.get("growth_intelligence", {})
     decision_context.summary["executive_measurement"] = payload.get("executive_measurement", {})
+    decision_context.summary["operating_executive"] = payload.get("operating_executive", {})
     decision_context.summary["promotion_brain"] = payload.get("promotion_brain", {})
     decision_context.summary["budget_guard"] = payload.get("budget_guard", {})
     decision_context.summary["video_production"] = payload.get("video_production", {})

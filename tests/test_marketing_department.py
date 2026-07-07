@@ -231,6 +231,29 @@ class MarketingDepartmentTests(unittest.TestCase):
             payload["executive_measurement"]["opportunity"]["highest"],
             "Generate one additional paying customer.",
         )
+        operating = payload["operating_executive"]
+        self.assertEqual(
+            operating["executive_rule"],
+            "The AI is evaluated by whether it managed the business today.",
+        )
+        self.assertIn("Social Manager", operating["manager_reports"])
+        self.assertEqual(operating["manager_reports"]["Social Manager"]["owns"], ["Instagram", "Facebook"])
+        self.assertEqual(
+            operating["manager_reports"]["Ads Manager"]["owns"],
+            ["Meta Ads", "Budget", "Campaigns"],
+        )
+        self.assertTrue(operating["internal_budget_ledger"]["authoritative"])
+        self.assertEqual(operating["internal_budget_ledger"]["monthly_budget_ils"], 600.0)
+        self.assertEqual(operating["internal_budget_ledger"]["daily_budget_ils"], 20.0)
+        self.assertIn("campaigns", operating["campaign_registry"])
+        self.assertEqual(operating["campaign_registry"]["campaigns"][0]["owner"], "Ads Manager")
+        self.assertIn("assets", operating["content_registry"])
+        self.assertEqual(operating["content_registry"]["assets"][0]["owner"], "Social Manager")
+        self.assertEqual(operating["competitor_registry"]["owner"], "Growth Manager")
+        self.assertEqual(operating["whatsapp_intelligence"]["owner"], "Analytics Manager")
+        self.assertEqual(operating["website_management"]["owner"], "Website Manager")
+        self.assertTrue(operating["self_management"]["never_idle"])
+        self.assertIn("insights", operating["executive_memory"])
         self.assertEqual(payload["promotion_brain"]["decision"], "pause")
         self.assertEqual(payload["promotion_brain"]["status"], "blocked")
         self.assertIn("spend_reconciliation", payload["budget_guard"]["failed_rules"])
@@ -256,6 +279,7 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("content_intelligence", context.summary)
         self.assertIn("growth_intelligence", context.summary)
         self.assertIn("executive_measurement", context.summary)
+        self.assertIn("operating_executive", context.summary)
         self.assertIn("promotion_brain", context.summary)
         self.assertIn("budget_guard", context.summary)
         self.assertIn("connector_health", context.summary)
@@ -266,6 +290,39 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("decision_ledger", context.summary)
         self.assertIn("business_memory", context.summary)
         self.assertIn("30 consecutive days", context.summary["execution_departments"]["success_criterion"])
+
+    def test_operating_executive_persists_management_registries(self) -> None:
+        context = _context()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            memory_root = Path(tmpdir)
+            MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=memory_root,
+            ).run(context)
+
+            operating_dir = memory_root / "executive_os"
+            expected_files = [
+                "budget_ledger.json",
+                "campaign_registry.json",
+                "content_registry.json",
+                "competitor_registry.json",
+                "whatsapp_intelligence.json",
+                "website_management.json",
+                "executive_memory.json",
+                "latest_operating_executive.json",
+            ]
+            for file_name in expected_files:
+                self.assertTrue((operating_dir / file_name).exists(), file_name)
+
+            budget = json.loads((operating_dir / "budget_ledger.json").read_text(encoding="utf-8"))
+            campaign = json.loads((operating_dir / "campaign_registry.json").read_text(encoding="utf-8"))
+            content = json.loads((operating_dir / "content_registry.json").read_text(encoding="utf-8"))
+
+        self.assertTrue(budget["authoritative"])
+        self.assertEqual(campaign["campaigns"][0]["name"], "Exploration - Israeli law firms WhatsApp conversations")
+        self.assertTrue(content["ranked_assets"])
 
     def test_video_specs_use_heygen_without_subtitles_for_instagram_reels(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

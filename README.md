@@ -365,6 +365,33 @@ The system uses three evidence levels:
 
 If internal data is missing, the AI CMO must keep operating with the best available evidence, label confidence, and improve instrumentation. It must not become a passive reporter whose main message is `Unavailable`.
 
+The Executive OS is now evaluated by one management question:
+
+```text
+Did it manage the business today?
+```
+
+It is not evaluated by reports, completed tasks, generated content, or activity volume.
+
+Every department manager permanently owns business assets:
+
+- Social Manager owns Instagram and Facebook.
+- Ads Manager owns Meta Ads, Budget, and Campaigns.
+- Analytics Manager owns GA4, website analytics, attribution, and business KPIs.
+- Website Manager owns homepage, landing pages, SEO, CTA, and conversion.
+- Creative Director owns creative quality, images, videos, copy, and brand consistency.
+- Growth Manager owns funnel, Business Value Score, experiment backlog, and opportunity ranking.
+
+These managers never finish. They continuously manage assets, create work when no work exists, remove blockers when blocked, and escalate only when impossible to resolve inside delegated authority.
+
+The runtime persists management state under:
+
+```text
+memory/executive_os/
+```
+
+That directory contains the internal budget ledger, campaign registry, content registry, competitor registry, WhatsApp intelligence, website management, executive memory, and latest operating-executive state.
+
 The first operating KPI is:
 
 ```text
@@ -531,6 +558,7 @@ The CEO brief should be readable in under 90 seconds and include only executive-
 
 - Executive Decision: one short paragraph explaining whether business performance improved, why, what decision comes next, when the AI will decide, and the biggest blocker.
 - Executive Scoreboard: business health, marketing health, revenue momentum, pipeline, booked demos, new customers, revenue, ROI, confidence, and business autonomy.
+- Manager Performance: each persistent manager reports status, objective, KPI, trend, risk, decision, and next review.
 - Executive Summary: maximum five bullets focused on business outcome.
 - Yesterday: completed work only when evidence exists.
 - Results: Instagram, WhatsApp, website, demos, customers, revenue, and comparisons only when verified.
@@ -544,6 +572,10 @@ The CEO brief should be readable in under 90 seconds and include only executive-
 If `executed_actions_today` is `none`, the CEO brief should say that no external execution completed and report only blocked/failed execution that matters. The brief must never start with `I published`, `I prepared`, or infrastructure status. It must never use `ready`, `prepared`, or `queued` as CEO-facing accomplishment language.
 
 The Executive OS is not evaluated by activities. It is evaluated by measurable business improvement. Every morning the AI must prove that the probability of acquiring another paying customer increased. If it cannot prove that, its highest priority is discovering why.
+
+Budget is owned internally. The internal budget ledger is authoritative; Meta only reconciles it. The brief must never say the budget is unavailable. It should report monthly budget, reserved, committed, spent, forecast, remaining, and per-campaign/experiment/asset allocations from the internal ledger.
+
+Campaigns and content are persistent registries, not one-off outputs. Every campaign has owner, objective, status, budget, start, end, spend, expected ROI, actual ROI, evidence, and recommendation. Every content asset has owner, lifecycle, published/measured/ranked/promoted/retired state, learning, and Business Value Score.
 
 Every brief must also answer:
 
