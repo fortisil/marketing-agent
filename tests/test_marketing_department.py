@@ -130,9 +130,14 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("שלחו הודעה ל-WhatsApp", actions["Content Agent"]["result"]["cta"])
         self.assertNotIn("Book a demo", actions["Content Agent"]["result"]["cta"])
         self.assertEqual(actions["Design Agent"]["result"]["image_provider"], "openai")
-        self.assertEqual(actions["Design Agent"]["result"]["text_policy"], "no_model_rendered_text")
-        self.assertIn("No text, no letters", actions["Design Agent"]["result"]["image_prompt"])
-        self.assertNotIn("clear Hebrew WhatsApp demo CTA", actions["Design Agent"]["result"]["image_prompt"])
+        self.assertEqual(
+            actions["Design Agent"]["result"]["text_policy"],
+            "hebrew_first_ad_text_required_after_creative_director_approval",
+        )
+        self.assertIn("premium Hebrew-first ChatBot2U Instagram advertisement", actions["Design Agent"]["result"]["image_prompt"])
+        self.assertIn("realistic product UI screenshot", actions["Design Agent"]["result"]["image_prompt"])
+        self.assertIn("Forbidden: robots", actions["Design Agent"]["result"]["image_prompt"])
+        self.assertFalse(actions["Design Agent"]["result"]["creative_director_review"]["approved"])
         self.assertEqual(actions["Design Agent"]["status"], "blocked")
         self.assertEqual(actions["Social Agent"]["status"], "blocked")
         self.assertEqual(actions["Ads Agent"]["status"], "blocked")
@@ -246,8 +251,11 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertTrue(operating["internal_budget_ledger"]["authoritative"])
         self.assertEqual(operating["internal_budget_ledger"]["monthly_budget_ils"], 600.0)
         self.assertEqual(operating["internal_budget_ledger"]["daily_budget_ils"], 20.0)
+        self.assertEqual(operating["internal_budget_ledger"]["remaining_today"], 20.0)
+        self.assertTrue(operating["internal_budget_ledger"]["allowed_to_launch"])
         self.assertIn("campaigns", operating["campaign_registry"])
         self.assertEqual(operating["campaign_registry"]["campaigns"][0]["owner"], "Ads Manager")
+        self.assertIn("campaign_decision", operating)
         self.assertIn("assets", operating["content_registry"])
         self.assertEqual(operating["content_registry"]["assets"][0]["owner"], "Social Manager")
         self.assertEqual(operating["competitor_registry"]["owner"], "Growth Manager")
@@ -255,10 +263,25 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertEqual(operating["website_management"]["owner"], "Website Manager")
         self.assertTrue(operating["self_management"]["never_idle"])
         self.assertIn("insights", operating["executive_memory"])
-        self.assertEqual(payload["promotion_brain"]["decision"], "pause")
+        self.assertEqual(payload["promotion_brain"]["decision"], "generate_better_creative")
         self.assertEqual(payload["promotion_brain"]["status"], "blocked")
-        self.assertIn("spend_reconciliation", payload["budget_guard"]["failed_rules"])
-        self.assertFalse(payload["budget_guard"]["campaign_creation_allowed"])
+        self.assertEqual(payload["budget_guard"]["daily_budget_limit"], 20.0)
+        self.assertEqual(payload["budget_guard"]["monthly_budget_limit"], 600.0)
+        self.assertEqual(payload["budget_guard"]["reserved_today"], 0.0)
+        self.assertEqual(payload["budget_guard"]["committed_today"], 0.0)
+        self.assertEqual(payload["budget_guard"]["spent_today"], 0.0)
+        self.assertEqual(payload["budget_guard"]["spent_month"], 0.0)
+        self.assertEqual(payload["budget_guard"]["remaining_today"], 20.0)
+        self.assertEqual(payload["budget_guard"]["remaining_month"], 600.0)
+        self.assertTrue(payload["budget_guard"]["allowed_to_launch"])
+        self.assertEqual(payload["budget_guard"]["failed_rules"], [])
+        self.assertTrue(payload["budget_guard"]["campaign_creation_allowed"])
+        self.assertEqual(payload["campaign_decision"]["state"], "launch_blocked")
+        self.assertEqual(payload["campaign_decision"]["decision"], "generate_better_creative")
+        self.assertEqual(payload["campaign_decision"]["campaign_run_answer"], "Campaign intentionally not launched.")
+        self.assertFalse(payload["campaign_decision"]["requires_ceo_action"])
+        self.assertIn("published_asset_available", payload["campaign_decision"]["failed_rules"])
+        self.assertIn("meta_connector_available", payload["campaign_decision"]["failed_rules"])
         self.assertEqual(payload["video_production"]["requirements"]["language"], "Hebrew")
         self.assertEqual(payload["video_production"]["requirements"]["aspect_ratio"], "9:16")
         self.assertFalse(payload["video_production"]["requirements"]["subtitles"])
@@ -283,6 +306,8 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("operating_executive", context.summary)
         self.assertIn("promotion_brain", context.summary)
         self.assertIn("budget_guard", context.summary)
+        self.assertIn("campaign_decision", context.summary)
+        self.assertEqual(context.summary["campaign_run_answer"], "Campaign intentionally not launched.")
         self.assertIn("connector_health", context.summary)
         self.assertIn("monitoring", context.summary)
         self.assertIn("weekly_executive_review", context.summary)
@@ -312,6 +337,7 @@ class MarketingDepartmentTests(unittest.TestCase):
                 "whatsapp_intelligence.json",
                 "website_management.json",
                 "executive_memory.json",
+                "latest_campaign_decision.json",
                 "latest_operating_executive.json",
             ]
             for file_name in expected_files:
@@ -320,9 +346,14 @@ class MarketingDepartmentTests(unittest.TestCase):
             budget = json.loads((operating_dir / "budget_ledger.json").read_text(encoding="utf-8"))
             campaign = json.loads((operating_dir / "campaign_registry.json").read_text(encoding="utf-8"))
             content = json.loads((operating_dir / "content_registry.json").read_text(encoding="utf-8"))
+            latest_decision = json.loads((operating_dir / "latest_campaign_decision.json").read_text(encoding="utf-8"))
 
         self.assertTrue(budget["authoritative"])
+        self.assertEqual(budget["daily_budget_limit"], 20.0)
+        self.assertEqual(budget["monthly_budget_limit"], 600.0)
+        self.assertEqual(budget["remaining_today"], 20.0)
         self.assertEqual(campaign["campaigns"][0]["name"], "Exploration - Israeli law firms WhatsApp conversations")
+        self.assertEqual(latest_decision["campaign_run_answer"], "Campaign intentionally not launched.")
         self.assertTrue(content["ranked_assets"])
 
     def test_operating_executive_prompt_payload_stays_compact(self) -> None:
@@ -342,7 +373,54 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("operating_executive", prompt)
         self.assertIn("manager_reports", prompt)
         self.assertIn("internal_budget_ledger", prompt)
+        self.assertIn("campaign_decision", prompt)
+        self.assertIn("Campaign Decision", prompt)
         self.assertNotIn("knowledge_summary", prompt)
+
+    def test_creative_director_blocks_generic_image_generation_before_openai(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                image_generation_enabled=True,
+                openai_api_key="test-key",
+                memory_root=Path(tmpdir),
+            ).run(_context())
+
+        payload = output.to_dict()
+        image_result = payload["execution_results"][0]
+        creative_review = payload["creative_brief"]["creative_director_review"]
+
+        self.assertFalse(creative_review["approved"])
+        self.assertIn("Real product screenshot asset is missing.", creative_review["failed_rules"])
+        self.assertEqual(image_result["status"], "blocked")
+        self.assertEqual(image_result["error"], "Creative Director rejected image generation before publishing.")
+        self.assertIn("generic AI illustration", creative_review["reject_if"])
+
+    def test_campaign_autonomy_always_answers_whether_campaign_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(_context())
+
+        decision = output.to_dict()["campaign_decision"]
+
+        self.assertIn(
+            decision["campaign_run_answer"],
+            {
+                "Campaign launched.",
+                "Campaign intentionally not launched.",
+                "Campaign blocked and CEO action required.",
+                "Campaign failed and automatic retry scheduled.",
+            },
+        )
+        self.assertIn("rules_checked", decision["evidence"])
+        self.assertIn("failed_rules", decision["evidence"])
+        self.assertIn("next_retry_time", decision["evidence"])
 
     def test_video_specs_use_heygen_without_subtitles_for_instagram_reels(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

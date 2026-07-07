@@ -209,10 +209,20 @@ def generate_brief_files(settings: Settings) -> OutputResult:
 def execute_marketing(settings: Settings, *, require_business_artifact: bool = False) -> dict[str, Any]:
     execution = execute_marketing_workforce(settings)
     summary = execution.decision_context.summary
-    results = summary.get("marketing_department", {}).get("execution_results", [])
+    marketing_department = summary.get("marketing_department", {})
+    results = marketing_department.get("execution_results", [])
+    action_log = marketing_department.get("action_log", [])
     completed = [item for item in results if item.get("status") == "completed"]
     blocked = [item for item in results if item.get("status") == "blocked"]
     failed = [item for item in results if item.get("status") == "failed"]
+    blocked_actions = [
+        item for item in action_log
+        if isinstance(item, dict) and item.get("status") == "blocked"
+    ]
+    failed_actions = [
+        item for item in action_log
+        if isinstance(item, dict) and item.get("status") == "failed"
+    ]
     generated_assets = _generated_asset_artifacts(completed)
     published_artifacts = _published_business_artifacts(completed)
     output = FileOutputChannel(settings.memory_path, settings.timezone).deliver(
@@ -227,9 +237,9 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
             "completed"
             if published_artifacts
             else "failed"
-            if failed
+            if failed or failed_actions
             else "blocked"
-            if blocked
+            if blocked or blocked_actions
             else "asset_generated"
             if generated_assets
             else "no_execution"
@@ -239,8 +249,8 @@ def execute_marketing(settings: Settings, *, require_business_artifact: bool = F
         "generated_assets": generated_assets,
         "run_date": execution.decision_context.run_date,
         "completed": completed,
-        "blocked": blocked,
-        "failed": failed,
+        "blocked": blocked or blocked_actions,
+        "failed": failed or failed_actions,
         "paths": {key: str(value) for key, value in output.paths.items()},
     }
     print(json.dumps(payload, ensure_ascii=False))
@@ -265,6 +275,36 @@ def check_connectors(settings: Settings) -> dict[str, Any]:
     print(json.dumps(payload, ensure_ascii=False))
     if payload["status"] != "ok":
         raise SystemExit(2)
+    return payload
+
+
+def prove_campaign_autonomy(settings: Settings) -> dict[str, Any]:
+    execution = execute_marketing_workforce(settings)
+    summary = execution.decision_context.summary
+    decision = summary.get("campaign_decision", {})
+    if not isinstance(decision, dict):
+        decision = {}
+    state = str(decision.get("state") or "")
+    if state in {"launch_approved", "launched", "monitoring"}:
+        status = "working"
+    elif state in {"launch_blocked", "paused"}:
+        status = "blocked"
+    else:
+        status = "failed"
+    payload = {
+        "campaign_autonomy_status": status,
+        "decision": decision.get("decision"),
+        "state": state,
+        "reason": decision.get("reason"),
+        "campaign_run_answer": decision.get("campaign_run_answer"),
+        "budget_guard": decision.get("budget_status") or summary.get("budget_guard", {}),
+        "meta_connector": decision.get("evidence", {}).get("meta_connector", {}),
+        "next_automatic_action": decision.get("next_automatic_action"),
+        "next_retry_at": decision.get("next_retry_at"),
+        "requires_ceo_action": bool(decision.get("requires_ceo_action")),
+        "evidence": decision.get("evidence", {}),
+    }
+    print(json.dumps(payload, ensure_ascii=False))
     return payload
 
 
@@ -316,6 +356,11 @@ def preflight(settings: Settings) -> dict[str, Any]:
             "actual": settings.openai_image_model,
             "ok": settings.openai_image_model == "gpt-image-1",
         },
+        "META_EXECUTION_ENABLED": {
+            "expected": "true when real campaign launches are delegated; false keeps campaign proof blocked",
+            "actual": settings.meta_execution_enabled,
+            "ok": True,
+        },
     }
     workflows = {
         "daily-brief.yml": _workflow_status(
@@ -324,6 +369,7 @@ def preflight(settings: Settings) -> dict[str, Any]:
                 "workflow_dispatch:",
                 "schedule:",
                 "python -m src.main --preflight",
+                "python -m src.main --prove-campaign-autonomy",
                 "python -m src.main --send-now",
                 "APP_ENV: production",
                 'ALLOW_MOCK_DATA: "false"',
@@ -333,6 +379,7 @@ def preflight(settings: Settings) -> dict[str, Any]:
             Path(".github/workflows/autonomous-marketing.yml"),
             required_terms=[
                 "workflow_dispatch:",
+                "python -m src.main --prove-campaign-autonomy",
                 "python -m src.main --execute-marketing --require-business-artifact",
                 "APP_ENV: production",
                 'ALLOW_MOCK_DATA: "false"',
@@ -602,6 +649,11 @@ def parse_args() -> argparse.Namespace:
         help="Print clean JSON readiness for tomorrow morning's production run.",
     )
     parser.add_argument(
+        "--prove-campaign-autonomy",
+        action="store_true",
+        help="Print clean JSON proving campaign launch/skip/retry autonomy.",
+    )
+    parser.add_argument(
         "--write-evening-journal",
         action="store_true",
         help="Write an evening Executive Journal from the latest daily report.",
@@ -617,7 +669,7 @@ def main() -> None:
     settings = load_settings()
     configure_logging(
         "ERROR"
-        if args.execute_marketing or args.check_connectors or args.preflight
+        if args.execute_marketing or args.check_connectors or args.preflight or args.prove_campaign_autonomy
         else settings.log_level
     )
 
@@ -643,6 +695,10 @@ def main() -> None:
 
     if args.preflight:
         preflight(settings)
+        return
+
+    if args.prove_campaign_autonomy:
+        prove_campaign_autonomy(settings)
         return
 
     if args.write_evening_journal:

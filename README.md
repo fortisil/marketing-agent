@@ -650,10 +650,11 @@ Run the execution-only acceptance command:
 ```bash
 python -m src.main --preflight
 python -m src.main --check-connectors
+python -m src.main --prove-campaign-autonomy
 python -m src.main --execute-marketing --require-business-artifact
 ```
 
-These commands do not send the CEO brief. The preflight command prints clean readiness JSON for tomorrow's production run. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
+These commands do not send the CEO brief. The preflight command prints clean readiness JSON for tomorrow's production run. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The campaign proof command prints clean JSON with `campaign_autonomy_status`, the deterministic budget guard, Meta connector status, next automatic action, CEO-action flag, and decision evidence. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
 
 The GitHub Actions acceptance workflow is:
 
@@ -675,6 +676,22 @@ META_EXECUTION_ENABLED=true
 ```
 
 These flags do not make the repo pretend execution happened. A post is published only when the execution log contains Buffer post/update ID, Buffer/social URL, timestamp, caption hash, image SHA-256, public image URL, and worker ID. A campaign is active only when verified Meta data confirms it.
+
+Campaign autonomy proof is explicit:
+
+- Every run writes a campaign decision record under `memory/executive_os/latest_campaign_decision.json`.
+- Budget Guard always returns internal ledger values for daily limit, monthly limit, reserved, committed, spent, remaining, allowed-to-launch, and failed rules.
+- Missing attribution does not block Exploration Mode by itself.
+- If Meta execution is unavailable, the decision record must say which connector/config is missing and when the next automatic retry occurs.
+- The CEO brief must say one of: `Campaign launched.`, `Campaign intentionally not launched.`, `Campaign blocked and CEO action required.`, or `Campaign failed and automatic retry scheduled.`
+
+Creative publishing proof is strict:
+
+- Every social asset starts from a Creative Brief with objective, audience, emotional trigger, promise, proof, offer, CTA, visual concept, headline, and supporting copy.
+- The Creative Director blocks generation until the asset can meet the Hebrew-first premium SaaS advertising standard.
+- Forbidden creative includes generic AI illustrations, robots, floating icons, stock-looking graphics, cartoon assistants, generic gradients, and weak Hebrew hierarchy.
+- Mandatory visual structure is Hebrew headline, supporting sentence, real product screenshot, ChatBot2U logo, clear WhatsApp CTA, whitespace, professional typography, modern SaaS layout, and consistent branding.
+- If the Creative Director would not spend ₪20 promoting it, the image is rejected before OpenAI image generation or Buffer publishing.
 
 ## Delivery Model
 

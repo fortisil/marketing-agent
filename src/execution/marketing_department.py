@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -75,6 +75,7 @@ class MarketingDepartmentOutput:
     operating_executive: dict[str, Any] = field(default_factory=dict)
     promotion_brain: dict[str, Any] = field(default_factory=dict)
     budget_guard: dict[str, Any] = field(default_factory=dict)
+    campaign_decision: dict[str, Any] = field(default_factory=dict)
     video_production: dict[str, Any] = field(default_factory=dict)
     brand_brain: dict[str, Any] = field(default_factory=dict)
     connector_health: dict[str, Any] = field(default_factory=dict)
@@ -108,6 +109,7 @@ class MarketingDepartmentOutput:
             "operating_executive": self.operating_executive,
             "promotion_brain": self.promotion_brain,
             "budget_guard": self.budget_guard,
+            "campaign_decision": self.campaign_decision,
             "video_production": self.video_production,
             "brand_brain": self.brand_brain,
             "connector_health": self.connector_health,
@@ -210,14 +212,25 @@ class MarketingDepartment:
         budget_status = self._budget_status(meta_ads)
         content_intelligence = self._content_intelligence(whatsapp_bot, meta_ads, buffer_result)
         growth_intelligence = self._growth_intelligence(whatsapp_bot, meta_ads, website_intelligence, content_intelligence)
-        budget_guard = self._budget_guard(budget_status)
+        budget_guard = self._budget_guard(budget_status, now)
         promotion_brain = self._promotion_brain(content_intelligence, budget_status, budget_guard)
+        campaign_decision = self._campaign_decision_record(
+            content_intelligence=content_intelligence,
+            promotion_brain=promotion_brain,
+            budget_guard=budget_guard,
+            budget_status=budget_status,
+            meta_ads=meta_ads,
+            cta=cta,
+            run_date=decision_context.run_date,
+            now=now,
+        )
         executive_measurement = self._executive_measurement(
             content_intelligence=content_intelligence,
             growth_intelligence=growth_intelligence,
             promotion_brain=promotion_brain,
             budget_status=budget_status,
             budget_guard=budget_guard,
+            campaign_decision=campaign_decision,
             whatsapp_bot=whatsapp_bot,
             meta_ads=meta_ads,
             website_intelligence=website_intelligence,
@@ -231,6 +244,7 @@ class MarketingDepartment:
             promotion_brain=promotion_brain,
             budget_status=budget_status,
             budget_guard=budget_guard,
+            campaign_decision=campaign_decision,
             whatsapp_bot=whatsapp_bot,
             meta_ads=meta_ads,
             website_intelligence=website_intelligence,
@@ -251,7 +265,7 @@ class MarketingDepartment:
             design_output,
             video_output,
             social_output,
-            self._ads_output(meta_ads, budget_status, content_intelligence, promotion_brain),
+            self._ads_output(meta_ads, budget_status, content_intelligence, promotion_brain, campaign_decision),
             self._analytics_output(whatsapp_bot, meta_ads, content_intelligence, growth_intelligence),
             self._website_output(website_intelligence, cta),
             self._outreach_output(cta),
@@ -287,6 +301,7 @@ class MarketingDepartment:
             operating_executive=operating_executive,
             promotion_brain=promotion_brain,
             budget_guard=budget_guard,
+            campaign_decision=campaign_decision,
             video_production=video_production,
             brand_brain=self._brand_brain(brand_intelligence),
             connector_health=self._connector_health(whatsapp_bot, meta_ads, image_result, buffer_result),
@@ -508,12 +523,49 @@ class MarketingDepartment:
         hebrew_cta = self._hebrew_whatsapp_cta(cta, brand_intelligence)
         verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
         verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        asset_library = brand_intelligence.get("asset_library", {}) if isinstance(brand_intelligence, dict) else {}
+        missing_brand_assets = brand_intelligence.get("missing_assets", []) if isinstance(brand_intelligence, dict) else []
+        product_screenshot_available = (
+            bool(asset_library.get("screenshots"))
+            and "screenshots" not in missing_brand_assets
+            and self._asset_library_has_files(asset_library.get("screenshots"))
+        )
+        approved_examples_available = (
+            bool(asset_library.get("templates"))
+            and "templates" not in missing_brand_assets
+            and self._asset_library_has_files(asset_library.get("templates"))
+        )
+        creative_director_approved = product_screenshot_available and approved_examples_available
+        creative_concepts = [
+            {
+                "concept_id": "law-firm-intake-before-after",
+                "score": 92,
+                "visual_concept": "Premium SaaS ad showing a real ChatBot2U intake screen beside a clean WhatsApp lead path.",
+                "headline": "כך משרד עורכי דין הופך פניות WhatsApp לדמואים כשירים",
+                "reason": "Clear pain, product proof, and direct customer-acquisition CTA.",
+            },
+            {
+                "concept_id": "legal-ai-quick-start",
+                "score": 88,
+                "visual_concept": "Landing-page style ad with product screenshot, feature cards, and a Legal AI Quick Start offer.",
+                "headline": "Legal AI Quick Start למשרדי עורכי דין",
+                "reason": "Matches the manually approved quality bar and keeps hierarchy Hebrew-first.",
+            },
+            {
+                "concept_id": "founder-proof-whatsapp",
+                "score": 81,
+                "visual_concept": "Founder-led proof layout with WhatsApp CTA and product workflow preview.",
+                "headline": "יותר מהר לפנייה כשירה. פחות זמן על סינון ידני.",
+                "reason": "Trust-building concept, but weaker without verified founder/product assets.",
+            },
+        ]
         return {
             "campaign_objective": "Acquire qualified law-firm customers.",
             "target_audience": policy["target_audience"],
             "marketing_language": policy["marketing_language"],
             "internal_operating_language": policy["internal_language"],
             "pain": "Israeli law firms lose time qualifying repeated WhatsApp and intake questions.",
+            "emotional_trigger": "Stop wasting attorney time on repetitive intake and missed WhatsApp opportunities.",
             "promise": "Turn WhatsApp inquiries into structured, demo-ready conversations.",
             "offer": "Short WhatsApp walkthrough for law firms.",
             "proof": (
@@ -527,21 +579,66 @@ class MarketingDepartment:
                 "ולהוביל שיחות רלוונטיות לדמו."
             ),
             "cta": hebrew_cta,
+            "visual_concept": creative_concepts[0]["visual_concept"],
             "landing_page": self._whatsapp_link(cta, brand_intelligence),
             "promotion_strategy": "Publish organically first; promote only inside budget rules when Business Value Score supports it.",
             "success_metric": "Additional paying customers, with booked demos and qualified leads as leading indicators.",
-            "quality_bar": "Comparable to premium agency advertisements.",
+            "quality_bar": "Israeli high-end SaaS advertisement, not AI artwork.",
+            "creative_concepts": creative_concepts,
+            "selected_concept": creative_concepts[0],
             "creative_director_review": {
-                "status": "approved_for_execution",
-                "reject_if": [
-                    "generic",
-                    "low_quality",
-                    "poorly_branded",
-                    "weak_visual_hierarchy",
-                    "unlikely_to_convert",
+                "approved": creative_director_approved,
+                "status": (
+                    "approved_for_execution"
+                    if creative_director_approved
+                    else "blocked_until_product_screenshot_and_template_assets_exist"
+                ),
+                "would_spend_20_ils_promoting_this": creative_director_approved,
+                "human_benchmark": "Would this stop an Israeli law-firm decision maker from scrolling?",
+                "mandatory_structure": [
+                    "Powerful Hebrew headline",
+                    "Supporting Hebrew sentence",
+                    "Real product screenshot",
+                    "ChatBot2U logo",
+                    "One clear WhatsApp CTA",
+                    "Minimal icons",
+                    "Whitespace",
+                    "Professional typography",
+                    "Modern SaaS layout",
+                    "Consistent branding",
                 ],
+                "reject_if": [
+                    "generic AI illustration",
+                    "robot",
+                    "floating icons",
+                    "stock-looking graphic",
+                    "cartoon or emoji style",
+                    "generic gradient background",
+                    "weak Hebrew hierarchy",
+                    "no product screenshot",
+                    "no WhatsApp CTA",
+                    "unlikely to convert",
+                ],
+                "failed_rules": (
+                    []
+                    if creative_director_approved
+                    else [
+                        "Real product screenshot asset is missing.",
+                        "Approved SaaS ad template/example asset is missing.",
+                    ]
+                ),
             },
         }
+
+    def _asset_library_has_files(self, path_value: Any) -> bool:
+        if not path_value:
+            return False
+        path = Path(str(path_value))
+        if not path.exists():
+            return False
+        if path.is_file():
+            return True
+        return any(item.is_file() for item in path.rglob("*"))
 
     def _marketing_language_policy(self, brand_intelligence: dict[str, Any]) -> dict[str, Any]:
         company = self.company_config.get("company", {})
@@ -651,9 +748,11 @@ class MarketingDepartment:
                 "language_policy": execution_task.payload["language_policy"],
                 "alt_text": execution_task.payload["alt_text"],
                 "guardrail": (
-                    "Use OpenAI for still images, keep Hebrew in captions, and do not publish "
-                    "AI-rendered Hebrew text inside generated image pixels."
+                    "Use OpenAI for still images only after Creative Director approval. "
+                    "The published asset must be Hebrew-first, premium SaaS advertising, and never generic AI artwork."
                 ),
+                "creative_director_review": execution_task.payload.get("creative_director_review"),
+                "selected_concept": execution_task.payload.get("selected_concept"),
                 "executed": bool(result and result.status == "completed"),
                 "image_path": result.proof.get("image_path") if result else None,
                 "worker_id": task.assigned_worker_id,
@@ -670,14 +769,25 @@ class MarketingDepartment:
         run_date: str,
     ) -> WorkTask:
         content = content_output.daily_output
+        creative_brief = content.get("creative_brief", {})
+        creative_review = creative_brief.get("creative_director_review", {})
+        selected_concept = creative_brief.get("selected_concept", {})
         brand_assets = self._brand_assets(brand_intelligence)
         prompt = (
-            "OpenAI-generated ChatBot2U branded Instagram visual for Hebrew-speaking Israeli law firms. "
-            f"Theme: {content.get('theme')}. "
-            "Show WhatsApp client intake becoming a structured qualified demo flow using abstract UI shapes, "
-            "simple icons, and practical legal-office context. Use approved ChatBot2U colors and clean B2B SaaS composition. "
-            "No text, no letters, no words, no Hebrew characters, no numbers, no CTA text, no subtitles, and no logo text inside the generated image. "
-            "All Hebrew copy and WhatsApp CTA must appear only in the Buffer caption or in a deterministic approved overlay outside the image generator."
+            "Design a premium Hebrew-first ChatBot2U Instagram advertisement for Israeli law firms. "
+            "This must look like a high-end SaaS campaign from Apple, Stripe, Notion, Linear, Monday, Wix Enterprise, or Israeli SaaS brands. "
+            f"Campaign objective: {creative_brief.get('campaign_objective')}. "
+            f"Audience: {creative_brief.get('target_audience')}. "
+            f"Emotional trigger: {creative_brief.get('emotional_trigger')}. "
+            f"Promise: {creative_brief.get('promise')}. "
+            f"Proof: {creative_brief.get('proof')}. "
+            f"Offer: {creative_brief.get('offer')}. "
+            f"CTA: {creative_brief.get('cta')}. "
+            f"Visual concept: {selected_concept.get('visual_concept')}. "
+            f"Hebrew headline: {selected_concept.get('headline') or creative_brief.get('headline')}. "
+            f"Supporting Hebrew copy: {creative_brief.get('supporting_copy')}. "
+            "Mandatory layout: powerful Hebrew headline, supporting sentence, realistic product UI screenshot, ChatBot2U logo, one clear WhatsApp CTA, minimal icons, generous whitespace, professional typography, modern SaaS landing-page aesthetic, consistent ChatBot2U branding. "
+            "Forbidden: robots, cartoon assistants, clipart, floating icons, AI icon packs, emoji style, stock-looking people, generic gradients, generic AI artwork, misspelled Hebrew, English-first hierarchy."
         )
         execution_task = ExecutionTask(
             id=f"{self.department.lower().replace(' ', '-')}-image-{run_date}",
@@ -694,9 +804,11 @@ class MarketingDepartment:
                 "prompt": prompt,
                 "size": "1024x1024",
                 "brand_assets": brand_assets,
+                "creative_director_review": creative_review,
+                "selected_concept": selected_concept,
                 "require_public_url": True,
-                "text_policy": "no_model_rendered_text",
-                "language_policy": "Hebrew caption only; no generated Hebrew text inside image",
+                "text_policy": "hebrew_first_ad_text_required_after_creative_director_approval",
+                "language_policy": "100% Hebrew visual hierarchy and CTA in the asset",
                 "alt_text": "ChatBot2U turns WhatsApp inquiries for law firms into structured demo-ready conversations.",
             },
         )
@@ -1094,6 +1206,7 @@ class MarketingDepartment:
         promotion_brain: dict[str, Any],
         budget_status: dict[str, Any],
         budget_guard: dict[str, Any],
+        campaign_decision: dict[str, Any],
         whatsapp_bot: dict[str, Any],
         meta_ads: dict[str, Any],
         website_intelligence: dict[str, Any],
@@ -1264,7 +1377,11 @@ class MarketingDepartment:
                 "confidence": 0.92 if verified_whatsapp else 0.64,
             },
             "campaign_if_available": {
-                "status": "blocked_by_budget_guard" if not budget_guard.get("campaign_creation_allowed") else "eligible_if_promotion_brain_approves",
+                "status": campaign_decision.get("state") or (
+                    "blocked_by_budget_guard"
+                    if not budget_guard.get("campaign_creation_allowed")
+                    else "eligible_if_promotion_brain_approves"
+                ),
                 "campaign_to_launch": {
                     "audience": "Israeli law firms",
                     "budget": "₪20/day",
@@ -1275,8 +1392,11 @@ class MarketingDepartment:
                 },
                 "current_spend_ils": campaign_metrics.get("spend"),
                 "budget_verified": budget_status.get("verified"),
-                "decision": promotion_brain.get("decision"),
-                "reason": promotion_brain.get("reason"),
+                "decision": campaign_decision.get("decision") or promotion_brain.get("decision"),
+                "reason": campaign_decision.get("reason") or promotion_brain.get("reason"),
+                "next_automatic_action": campaign_decision.get("next_automatic_action"),
+                "requires_ceo_action": campaign_decision.get("requires_ceo_action"),
+                "evidence": campaign_decision.get("evidence"),
             },
             "today_operating_work": [
                 "Review yesterday's post and classify signal quality.",
@@ -1302,6 +1422,7 @@ class MarketingDepartment:
         promotion_brain: dict[str, Any],
         budget_status: dict[str, Any],
         budget_guard: dict[str, Any],
+        campaign_decision: dict[str, Any],
         whatsapp_bot: dict[str, Any],
         meta_ads: dict[str, Any],
         website_intelligence: dict[str, Any],
@@ -1313,6 +1434,7 @@ class MarketingDepartment:
         campaign_registry = self._campaign_registry(
             budget_ledger=budget_ledger,
             promotion_brain=promotion_brain,
+            campaign_decision=campaign_decision,
             meta_ads=meta_ads,
             run_date=run_date,
             now=now,
@@ -1366,6 +1488,7 @@ class MarketingDepartment:
             },
             "internal_budget_ledger": budget_ledger,
             "campaign_registry": campaign_registry,
+            "campaign_decision": campaign_decision,
             "content_registry": content_registry,
             "competitor_registry": competitor_registry,
             "whatsapp_intelligence": whatsapp_intelligence,
@@ -1389,8 +1512,8 @@ class MarketingDepartment:
         daily_budget = float(budget_status.get("daily_budget_limit_ils") or previous.get("daily_budget_ils") or 20)
         verified_spend = bool(budget_status.get("verified"))
         current_spend = float(budget_status.get("current_spend_ils") or 0)
-        spent = current_spend if verified_spend else float(previous.get("spent_ils") or 0)
-        reserved = daily_budget if not budget_guard.get("campaign_creation_allowed") else float(previous.get("reserved_ils") or 0)
+        spent = current_spend if verified_spend else float(previous.get("spent_month") or previous.get("spent_ils") or 0)
+        reserved = float(budget_guard.get("reserved_today") or previous.get("reserved_today") or 0)
         committed = float(previous.get("committed_ils") or 0)
         forecast = spent + reserved + committed
         remaining = max(0.0, monthly_budget - forecast)
@@ -1398,6 +1521,16 @@ class MarketingDepartment:
             "authoritative": True,
             "meta_reconciles_internal_ledger": True,
             "currency": "ILS",
+            "daily_budget_limit": daily_budget,
+            "monthly_budget_limit": monthly_budget,
+            "reserved_today": reserved,
+            "committed_today": float(budget_guard.get("committed_today") or 0),
+            "spent_today": float(budget_guard.get("spent_today") or 0),
+            "spent_month": spent,
+            "remaining_today": float(budget_guard.get("remaining_today") or daily_budget),
+            "remaining_month": float(budget_guard.get("remaining_month") or remaining),
+            "allowed_to_launch": bool(budget_guard.get("allowed_to_launch")),
+            "failed_rules": budget_guard.get("failed_rules", []),
             "monthly_budget_ils": monthly_budget,
             "daily_budget_ils": daily_budget,
             "reserved_ils": reserved,
@@ -1409,10 +1542,10 @@ class MarketingDepartment:
             "per_experiment": previous.get("per_experiment", {}),
             "per_asset": previous.get("per_asset", {}),
             "spend_verified_by_meta": verified_spend,
-            "budget_guard_status": "passed" if budget_guard.get("campaign_creation_allowed") else "holding_spend",
+            "budget_guard_status": "passed" if budget_guard.get("allowed_to_launch") else "holding_spend",
             "decision": (
                 "Hold new spend until budget guard and promotion decision pass."
-                if not budget_guard.get("campaign_creation_allowed")
+                if not budget_guard.get("allowed_to_launch")
                 else "Budget can be deployed within delegated authority."
             ),
             "updated_at": now.isoformat(),
@@ -1426,6 +1559,7 @@ class MarketingDepartment:
         *,
         budget_ledger: dict[str, Any],
         promotion_brain: dict[str, Any],
+        campaign_decision: dict[str, Any],
         meta_ads: dict[str, Any],
         run_date: str,
         now: datetime,
@@ -1448,6 +1582,7 @@ class MarketingDepartment:
                     "actual_roi": None,
                     "evidence": ["internal_campaign_registry", "budget_ledger"],
                     "recommendation": "Launch only when Promotion Brain and Budget Guard approve.",
+                    "last_decision_id": None,
                 }
             )
         active = [
@@ -1461,9 +1596,12 @@ class MarketingDepartment:
             "campaigns": campaigns,
             "meta_campaign_status": meta_ads.get("campaign_status", "unknown"),
             "budget_ledger_remaining_ils": budget_ledger.get("remaining_ils"),
-            "decision": promotion_brain.get("decision"),
-            "recommendation": promotion_brain.get("reason"),
-            "next_review": f"{run_date} 16:00 Asia/Jerusalem",
+            "decision": campaign_decision.get("decision") or promotion_brain.get("decision"),
+            "state": campaign_decision.get("state"),
+            "recommendation": campaign_decision.get("reason") or promotion_brain.get("reason"),
+            "next_review": campaign_decision.get("next_retry_at") or f"{run_date} 16:00 Asia/Jerusalem",
+            "last_decision_id": campaign_decision.get("decision_id"),
+            "last_campaign_decision": campaign_decision,
             "updated_at": now.isoformat(),
         }
         self._write_operating_json("campaign_registry.json", registry)
@@ -1775,6 +1913,7 @@ class MarketingDepartment:
 
     def _write_operating_json(self, name: str, payload: Any) -> None:
         path = self._operating_dir() / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     def _persist_operating_state(self, state: dict[str, Any]) -> None:
@@ -1815,30 +1954,56 @@ class MarketingDepartment:
             },
         }
 
-    def _budget_guard(self, budget_status: dict[str, Any]) -> dict[str, Any]:
+    def _budget_guard(self, budget_status: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
+        now = now or datetime.now(ZoneInfo(self.timezone))
+        daily_limit = float(budget_status.get("daily_budget_limit_ils") or 20)
+        monthly_limit = float(budget_status.get("monthly_budget_limit_ils") or daily_limit * 30)
+        spent_today = float(budget_status.get("current_spend_ils") or 0)
+        spent_month = spent_today
+        reserved_today = 0.0
+        committed_today = 0.0
+        remaining_today = max(0.0, daily_limit - reserved_today - committed_today - spent_today)
+        remaining_month = max(0.0, monthly_limit - spent_month)
+        is_saturday = now.weekday() == 5
+        is_friday_after_morning = now.weekday() == 4 and now.hour >= 12
         rules = {
-            "daily_cap": budget_status.get("daily_budget_limit_ils"),
-            "monthly_cap": budget_status.get("monthly_budget_limit_ils"),
+            "daily_cap": daily_limit <= 20,
+            "monthly_cap": monthly_limit <= 600,
+            "remaining_daily_budget": remaining_today >= daily_limit,
+            "remaining_monthly_budget": remaining_month >= daily_limit,
             "one_active_experiment_per_asset": True,
-            "friday_schedule": budget_status.get("friday"),
-            "saturday_block": budget_status.get("saturday"),
+            "one_active_campaign_at_a_time": bool(budget_status.get("one_active_campaign_limit", True)),
+            "friday_morning_only": not is_friday_after_morning,
+            "saturday_block": not is_saturday,
             "duplicate_prevention": True,
-            "spend_reconciliation": budget_status.get("verified"),
+            "exploration_experiment_cap": daily_limit <= 20,
+            "internal_ledger_exists": True,
         }
         failed_rules = [
             name
             for name, value in rules.items()
             if value in {False, None, ""}
         ]
+        allowed = not failed_rules
         return {
+            "daily_budget_limit": daily_limit,
+            "monthly_budget_limit": monthly_limit,
+            "reserved_today": reserved_today,
+            "committed_today": committed_today,
+            "spent_today": spent_today,
+            "spent_month": spent_month,
+            "remaining_today": remaining_today,
+            "remaining_month": remaining_month,
+            "allowed_to_launch": allowed,
+            "meta_spend_reconciliation": "verified" if budget_status.get("verified") else "pending",
             "rules": rules,
             "failed_rules": failed_rules,
-            "campaign_creation_allowed": not failed_rules,
+            "campaign_creation_allowed": allowed,
             "decision": "stop_campaign_creation" if failed_rules else "allow_if_promotion_brain_approves",
             "reason": (
                 "Campaign creation must stop until failed budget guard rules are resolved."
                 if failed_rules
-                else "Budget guard rules are satisfied."
+                else "Internal budget guard rules are satisfied. Meta reconciliation is separate from launch authority."
             ),
         }
 
@@ -1849,16 +2014,25 @@ class MarketingDepartment:
         budget_guard: dict[str, Any],
     ) -> dict[str, Any]:
         score = content_intelligence.get("business_value_score")
+        has_verified_metrics = content_intelligence.get("status") == "verified"
+        has_published_asset = bool(content_intelligence.get("published_asset_under_review"))
         promote = bool(
-            isinstance(score, int)
-            and score >= 90
-            and budget_status.get("verified")
-            and budget_guard.get("campaign_creation_allowed")
+            budget_guard.get("allowed_to_launch")
+            and has_published_asset
+            and (
+                (isinstance(score, int) and score >= 90)
+                or not has_verified_metrics
+            )
         )
+        decision = "launch_campaign" if promote else "generate_better_creative" if not has_published_asset else "hold_budget"
         return {
-            "allowed_decisions": ["launch", "pause", "resume", "scale", "duplicate", "terminate"],
-            "decision": "launch" if promote else "pause",
-            "status": "blocked" if not promote else "approved_for_connector",
+            "allowed_decisions": ["launch_campaign", "hold_budget", "generate_better_creative", "retry_later"],
+            "decision": decision,
+            "decision_option": decision,
+            "mode": "exploration" if not has_verified_metrics else "optimization",
+            "attribution_required_to_launch": False,
+            "confidence": "low" if not has_verified_metrics else "medium",
+            "status": "approved_for_connector" if promote else "blocked",
             "business_value_score": score,
             "decision_inputs": {
                 "budget_remaining": budget_status.get("remaining_monthly_budget_ils"),
@@ -1870,14 +2044,210 @@ class MarketingDepartment:
             },
             "hypothesis": "Promoting the highest-value WhatsApp-intake asset will increase qualified law-firm demos.",
             "expected_outcome": "More qualified WhatsApp conversations that convert into booked demos.",
-            "stop_condition": "Stop if budget guard fails, attribution is unavailable for too long, or cost per qualified lead exceeds the target.",
+            "stop_condition": "Stop after ₪100 exploration spend, if budget guard fails, if no WhatsApp conversations are produced, or if cost per qualified lead exceeds target.",
             "success_criteria": "Verified qualified leads, booked demos, or customers increase within delegated budget.",
+            "campaign_objective": "WhatsApp conversations",
+            "tracked_whatsapp_link_required": True,
+            "next_automatic_action": (
+                "Pass launch-approved decision to MetaExecutor."
+                if promote
+                else "Create a stronger Hebrew creative before re-evaluating campaign spend."
+                if not has_published_asset
+                else "Re-evaluate the latest asset at the next 16:00 Asia/Jerusalem campaign window."
+            ),
             "reason": (
-                "Promotion is blocked until Business Value Score, verified spend, and Budget Guard all pass."
+                "Promotion is blocked until a published asset and Budget Guard pass."
                 if not promote
-                else "Promotion Brain approved launch within delegated guardrails."
+                else "Promotion Brain approved controlled exploration within delegated guardrails; missing attribution is labeled low confidence, not a launch blocker."
             ),
         }
+
+    def _campaign_decision_record(
+        self,
+        *,
+        content_intelligence: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        budget_guard: dict[str, Any],
+        budget_status: dict[str, Any],
+        meta_ads: dict[str, Any],
+        cta: dict[str, Any],
+        run_date: str,
+        now: datetime,
+    ) -> dict[str, Any]:
+        published_asset = content_intelligence.get("published_asset_under_review") or {}
+        asset_id = (
+            published_asset.get("buffer_update_id")
+            or published_asset.get("image_sha256")
+            or f"planned-founder-whatsapp-{run_date}"
+        )
+        post_url = published_asset.get("instagram_url")
+        tracked_whatsapp_link = self._whatsapp_link(cta, {})
+        next_retry_at = self._next_campaign_retry(now).isoformat()
+        meta_connector = self._meta_connector_status(meta_ads)
+        rules_checked = {
+            "one_active_campaign_at_a_time": budget_status.get("one_active_campaign_limit", True),
+            "daily_budget_lte_20": budget_guard.get("daily_budget_limit", 20) <= 20,
+            "monthly_budget_lte_600": budget_guard.get("monthly_budget_limit", 600) <= 600,
+            "exploration_experiment_lte_100": True,
+            "no_saturday": budget_guard.get("rules", {}).get("saturday_block"),
+            "friday_morning_only": budget_guard.get("rules", {}).get("friday_morning_only"),
+            "tracked_whatsapp_cta_present": bool(tracked_whatsapp_link),
+            "stop_condition_present": bool(promotion_brain.get("stop_condition")),
+            "published_asset_available": bool(published_asset),
+            "meta_connector_available": meta_connector["available"],
+        }
+        failed_rules = [
+            name for name, value in rules_checked.items()
+            if value in {False, None, ""}
+        ]
+        failed_rules.extend(
+            rule for rule in budget_guard.get("failed_rules", [])
+            if rule not in failed_rules
+        )
+
+        if meta_connector["available"] and promotion_brain.get("decision") == "launch_campaign" and not failed_rules:
+            state = "launch_approved"
+            decision = "launch_campaign"
+            reason = "Campaign launch is approved by Promotion Brain, Budget Guard, and Meta connector status."
+            requires_ceo_action = False
+            next_action = "MetaExecutor creates campaign, ad set, and ad in the same execution window."
+            campaign_run_answer = "Campaign launched."
+        elif meta_connector["available"] and promotion_brain.get("decision") == "hold_budget":
+            state = "launch_blocked"
+            decision = "hold_budget"
+            reason = "Campaign intentionally not launched because promotion signal did not justify spend."
+            requires_ceo_action = False
+            next_action = "Re-evaluate the latest asset at the next campaign decision window."
+            campaign_run_answer = "Campaign intentionally not launched."
+        elif promotion_brain.get("decision") == "generate_better_creative":
+            state = "launch_blocked"
+            decision = "generate_better_creative"
+            reason = "Campaign not launched because no approved published asset exists for promotion."
+            requires_ceo_action = False
+            next_action = "Generate and publish an approved Hebrew SaaS advertisement before campaign evaluation."
+            campaign_run_answer = "Campaign intentionally not launched."
+        else:
+            state = "launch_blocked"
+            decision = "retry_later"
+            reason = meta_connector["reason"]
+            requires_ceo_action = meta_connector["requires_ceo_action"]
+            next_action = (
+                "Retry Meta connector validation at the next campaign decision window."
+                if not requires_ceo_action
+                else "Wait for missing Meta execution configuration, then retry automatically."
+            )
+            campaign_run_answer = (
+                "Campaign blocked and CEO action required."
+                if requires_ceo_action
+                else "Campaign failed and automatic retry scheduled."
+            )
+
+        evidence = {
+            "rules_checked": rules_checked,
+            "failed_rules": failed_rules,
+            "next_retry_time": next_retry_at,
+            "budget": {
+                "daily_budget_limit": budget_guard.get("daily_budget_limit"),
+                "monthly_budget_limit": budget_guard.get("monthly_budget_limit"),
+                "reserved_today": budget_guard.get("reserved_today"),
+                "committed_today": budget_guard.get("committed_today"),
+                "spent_today": budget_guard.get("spent_today"),
+                "spent_month": budget_guard.get("spent_month"),
+                "remaining_today": budget_guard.get("remaining_today"),
+                "remaining_month": budget_guard.get("remaining_month"),
+                "allowed_to_launch": budget_guard.get("allowed_to_launch"),
+                "failed_rules": budget_guard.get("failed_rules", []),
+            },
+            "meta_connector": meta_connector,
+            "linked_instagram_post": post_url,
+            "tracked_whatsapp_link": tracked_whatsapp_link,
+            "stop_condition": promotion_brain.get("stop_condition"),
+        }
+        if state in {"launch_approved", "launched", "monitoring"}:
+            evidence.update(
+                {
+                    "meta_campaign_id": None,
+                    "ad_set_id": None,
+                    "ad_id": None,
+                    "budget": "₪20/day",
+                    "start_time": now.isoformat(),
+                }
+            )
+        record = {
+            "decision_id": f"campaign-decision-{run_date}-{sha256(str(asset_id).encode('utf-8')).hexdigest()[:8]}",
+            "asset_id": asset_id,
+            "post_url": post_url,
+            "evaluated_at": now.isoformat(),
+            "state": state,
+            "decision": decision,
+            "reason": reason,
+            "why": promotion_brain.get("reason"),
+            "expected_outcome": promotion_brain.get("expected_outcome"),
+            "confidence": promotion_brain.get("confidence"),
+            "rules_checked": rules_checked,
+            "failed_rules": failed_rules,
+            "budget_status": evidence["budget"],
+            "next_retry_at": next_retry_at,
+            "next_automatic_action": next_action,
+            "requires_ceo_action": requires_ceo_action,
+            "campaign_run_answer": campaign_run_answer,
+            "evidence": evidence,
+        }
+        self._write_operating_json(f"campaign_decisions/{record['decision_id']}.json", record)
+        self._write_operating_json("latest_campaign_decision.json", record)
+        return record
+
+    def _meta_connector_status(self, meta_ads: dict[str, Any]) -> dict[str, Any]:
+        missing: list[str] = []
+        reason_parts: list[str] = []
+        if not self.meta_execution_enabled:
+            missing.append("META_EXECUTION_ENABLED=true")
+        if not isinstance(meta_ads, dict) or not meta_ads.get("verified"):
+            reason = str(meta_ads.get("reason") or "No verified Meta campaign data available.")
+            reason_parts.append(reason)
+            if "META_ACCESS_TOKEN" in reason:
+                missing.append("META_ACCESS_TOKEN")
+            if "META_IG_ACCOUNT_ID" in reason:
+                missing.append("META_IG_ACCOUNT_ID")
+            if "META_AD_ACCOUNT_ID" in reason:
+                missing.append("META_AD_ACCOUNT_ID")
+        connector_implemented = False
+        if not connector_implemented:
+            missing.append("MetaExecutor campaign creation connector")
+        missing = list(dict.fromkeys(missing))
+        available = self.meta_execution_enabled and connector_implemented and bool(meta_ads.get("verified"))
+        requires_ceo_action = any(item.startswith("META_") for item in missing)
+        exact_reason = (
+            "Meta campaign execution connector is available."
+            if available
+            else "Meta campaign launch blocked: "
+            + ", ".join(missing)
+            + (
+                f". Source reason: {' '.join(reason_parts)}"
+                if reason_parts
+                else "."
+            )
+        )
+        return {
+            "available": available,
+            "configured": self.meta_execution_enabled,
+            "verified_metrics": bool(isinstance(meta_ads, dict) and meta_ads.get("verified")),
+            "connector_implemented": connector_implemented,
+            "missing": missing,
+            "requires_ceo_action": requires_ceo_action,
+            "reason": exact_reason,
+        }
+
+    def _next_campaign_retry(self, now: datetime) -> datetime:
+        retry = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        if now >= retry:
+            retry = retry + timedelta(days=1)
+        while retry.weekday() == 5:
+            retry = retry + timedelta(days=1)
+        if retry.weekday() == 4 and retry.hour >= 12:
+            retry = retry + timedelta(days=2)
+            retry = retry.replace(hour=16, minute=0, second=0, microsecond=0)
+        return retry
 
     def _video_production(
         self,
@@ -2149,25 +2519,31 @@ class MarketingDepartment:
         budget_status: dict[str, Any],
         content_intelligence: dict[str, Any],
         promotion_brain: dict[str, Any],
+        campaign_decision: dict[str, Any],
     ) -> AgentOutput:
         verified_campaign = bool(meta_ads.get("verified") and meta_ads.get("campaign_status") == "active")
+        status = "completed" if campaign_decision.get("state") in {"launched", "monitoring"} else "blocked"
         return AgentOutput(
             agent="Ads Agent",
-            status="blocked",
+            status=status,
             daily_output={
                 "campaign_status": meta_ads.get("campaign_status", "unknown"),
-                "executed": False,
-                "reason": (
-                    "MetaExecutor is not implemented/configured. A campaign cannot be created or reported active."
-                ),
+                "executed": status == "completed",
+                "reason": campaign_decision.get("reason"),
                 "promotion_brain": promotion_brain,
-                "promotion_decision": promotion_brain.get("decision"),
+                "promotion_decision": campaign_decision.get("decision"),
+                "campaign_decision": campaign_decision,
+                "campaign_run_answer": campaign_decision.get("campaign_run_answer"),
+                "next_automatic_action": campaign_decision.get("next_automatic_action"),
+                "requires_ceo_action": campaign_decision.get("requires_ceo_action"),
                 "business_value_score": content_intelligence.get("business_value_score"),
                 "budget_status": budget_status,
+                "budget_guard": campaign_decision.get("budget_status"),
                 "budget_rule": "Do not exceed ILS 20/day or ILS 600/month. No Saturday spend. Friday morning only. One active promotion per asset.",
                 "verified_active_campaign": verified_campaign,
+                "evidence": campaign_decision.get("evidence"),
             },
-            error="waiting_for_meta_executor",
+            error=None if status == "completed" else campaign_decision.get("reason"),
         )
 
     def _analytics_output(
@@ -2326,6 +2702,8 @@ def attach_marketing_department_output(
     decision_context.summary["operating_executive"] = payload.get("operating_executive", {})
     decision_context.summary["promotion_brain"] = payload.get("promotion_brain", {})
     decision_context.summary["budget_guard"] = payload.get("budget_guard", {})
+    decision_context.summary["campaign_decision"] = payload.get("campaign_decision", {})
+    decision_context.summary["campaign_run_answer"] = payload.get("campaign_decision", {}).get("campaign_run_answer")
     decision_context.summary["video_production"] = payload.get("video_production", {})
     decision_context.summary["brand_brain"] = payload.get("brand_brain", {})
     decision_context.summary["connector_health"] = payload.get("connector_health", {})
@@ -2350,6 +2728,14 @@ def attach_marketing_department_output(
                 "worker_id",
             ],
             "started_campaign": ["campaign_id", "budget", "status"],
+            "campaign_decision": [
+                "decision_id",
+                "rules_checked",
+                "failed_rules",
+                "budget_status",
+                "next_retry_at",
+                "requires_ceo_action",
+            ],
             "generated_video": ["mp4_path", "storage_location", "execution_log"],
         },
     }

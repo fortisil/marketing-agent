@@ -26,6 +26,7 @@ EXECUTIVE_DECISION_REQUIRED_MARKERS = (
     "Business Funnel",
     "Content Intelligence",
     "Campaign Intelligence",
+    "Campaign Decision",
     "Website Intelligence",
     "Competitor Intelligence",
     "WhatsApp Intelligence",
@@ -50,6 +51,12 @@ EXECUTIVE_DECISION_FORBIDDEN_PHRASES = (
     "publishing path exists",
     "connector runtime exists",
     "execution path is implemented",
+)
+CAMPAIGN_AUTONOMY_ANSWERS = (
+    "Campaign launched.",
+    "Campaign intentionally not launched.",
+    "Campaign blocked and CEO action required.",
+    "Campaign failed and automatic retry scheduled.",
 )
 
 
@@ -89,7 +96,7 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `operating_executive`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `operating_executive`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `campaign_decision`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
 
 Hard rules:
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
@@ -112,6 +119,26 @@ Hard rules:
 - Include budget status only as operating proof: daily limit, monthly limit, active campaign status, and whether spend is verified. Do not imply spend occurred unless verified.
 - Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`. If learning is pending because attribution is missing, say that directly.
 - Include promotion only from `promotion_brain` and `budget_guard`. If Budget Guard blocks campaign creation, report the failed rule and next automatic retry.
+- The brief must include a section titled exactly "Campaign Decision".
+- The Campaign Decision section must use this exact structure:
+  Campaign Decision:
+  - Decision:
+  - Reason:
+  - Budget:
+  - Status:
+  - Next Automatic Action:
+  - Retry Time:
+  - CEO Action Required: Yes/No
+  - Evidence:
+- The Campaign Decision section must contain exactly one of these status answers:
+  - Campaign launched.
+  - Campaign intentionally not launched.
+  - Campaign blocked and CEO action required.
+  - Campaign failed and automatic retry scheduled.
+- If launched, evidence must include Meta Campaign ID, Ad Set ID, Ad ID, Budget, Start time, Linked Instagram post, and Tracked WhatsApp link.
+- If not launched, evidence must include Rules checked, Failed rules, and Next retry time.
+- If attribution is missing, do not block exploration mode only for that reason. Label the decision low-confidence and use the controlled exploration rules from `campaign_decision`.
+- Never leave the CEO asking "Will the campaign run?" The section must answer did launch, did not launch intentionally, blocked with CEO action, or failed with automatic retry.
 - Use `monitoring` for health status, last successful run, next scheduled run, and blocking issues. Do not invent monitoring status.
 - Include `Self-Evaluation` near the end. Answer only these five questions from `self_evaluation`: measurable business value, evidence, biggest positive decision, wrong decision, tomorrow's change.
 - Workforce queue internals belong in memory. Mention only completed work, blocked work, business impact, autonomous completion rate, revenue influence, and business autonomy index.
@@ -173,43 +200,48 @@ Keep the CEO brief concise. Use these sections in this order:
    - Show organic/running status, spend, CTR, CPC, WhatsApp, qualified, demos, customers, recommendation, expected ROI.
    - If Meta is unavailable, show `executive_measurement.campaign_if_available.campaign_to_launch`: audience, budget, objective, expected CPL, stop rule, schedule, and why it is blocked.
    - Use `operating_executive.campaign_registry`. Never write "Campaign unavailable"; show registry status, status reason, and next campaign decision.
-10. Website Intelligence:
+10. Campaign Decision:
+   - Use `campaign_decision` only.
+   - Use the exact required structure and one of the four explicit campaign answers.
+   - Include budget fields from `campaign_decision.budget_status`, not inferred prose.
+   - CEO Action Required must be exactly Yes or No.
+11. Website Intelligence:
    - Visitors, conversion, CTA clicks, most viewed page, worst page, bounce, top search query, recommendation, and whether to open a PR.
    - Use `operating_executive.website_management`.
-11. Competitor Intelligence:
+12. Competitor Intelligence:
    - Analyzed, top campaign, opportunity, threat, recommended response. If not connected, say unavailable.
    - If not connected, say what public/platform signal will be used until competitor monitoring exists.
    - Use `operating_executive.competitor_registry`.
-12. WhatsApp Intelligence:
+13. WhatsApp Intelligence:
    - Conversations, qualified, demo requests, booked, closed, lost, most common objection, response quality, average response time, recommendation.
    - If missing, use `executive_measurement.whatsapp_measurement`: status, business impact, automatic action, expected completion, confidence.
    - Use `operating_executive.whatsapp_intelligence` for intent, objections, drop-offs, booking quality, lead quality, lost reasons, and recommendation.
-13. Decision Ledger:
+14. Decision Ledger:
    - Today's decisions, reason, expected outcome, and how success will be measured.
-14. Currently Working:
+15. Currently Working:
    - Only real work in progress. No fake progress, no "ready", no "prepared", no "queued".
    - Use `executive_measurement.today_operating_work` for what the AI is doing today while Rami is working.
    - Use `operating_executive.self_management.manager_actions` to show what will happen automatically today.
-15. Self Evaluation:
+16. Self Evaluation:
    - Yesterday's prediction, result, prediction confidence, learning, and whether a Business Memory rule was added.
    - If evidence is pending, say when the prediction will be reviewed and what changes if it is wrong.
-16. Business Memory:
+17. Business Memory:
    - New learning only. If none is verified, say none verified.
    - Use `operating_executive.executive_memory` for campaigns, experiments, insights, failures, successful strategies, creative patterns, promotion history, and budget history.
-17. Budget:
+18. Budget:
    - Use `operating_executive.internal_budget_ledger`.
    - Show Monthly budget, Reserved, Committed, Spent, Forecast, Remaining, per campaign, per experiment, and per asset.
    - Budget is internally authoritative even when Meta reconciliation is pending.
-18. Opportunity Ranking:
+19. Opportunity Ranking:
    - The most important section. Rank today's opportunities by expected customer-acquisition impact and confidence.
    - Do not list the mission as the opportunity. Use `executive_measurement.opportunity`.
-19. Risks:
+20. Risks:
    - Real business risks and mitigations.
-20. Executive Calendar:
+21. Executive Calendar:
    - Today only. Show what the AI will do and when, using local Israel time.
-21. Proof:
+22. Proof:
    - Evidence IDs/URLs/hashes for every completed action.
-22. CEO Question:
+23. CEO Question:
    - End with exactly one sentence: "If I were the CEO today, I would focus on: ___ because ___."
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
@@ -336,6 +368,8 @@ def _compact_prompt_payload(decision_context: DecisionContext) -> dict[str, Any]
             "promotion_brain",
             "budget_status",
             "budget_guard",
+            "campaign_decision",
+            "campaign_run_answer",
             "content_intelligence",
             "decision_ledger",
             "hypothesis_register",
@@ -465,7 +499,10 @@ def generate_brief(
         if not content:
             raise RuntimeError("OpenAI returned an empty brief.")
 
-        normalized = normalize_brief_language(content.strip())
+        normalized = _enforce_campaign_decision_section(
+            normalize_brief_language(content.strip()),
+            decision_context,
+        )
         try:
             validate_hebrew_brief_style(normalized)
             if str(brief_language).lower() in {"en", "english"}:
@@ -518,6 +555,76 @@ def normalize_brief_language(brief: str) -> str:
     return normalized
 
 
+def _enforce_campaign_decision_section(brief: str, decision_context: DecisionContext) -> str:
+    section = _campaign_decision_markdown(decision_context)
+    if not section:
+        return brief
+    pattern = re.compile(r"(?ms)^#{2,3}\s+Campaign Decision:?.*?(?=^#{2,3}\s+|\Z)")
+    if pattern.search(brief):
+        return pattern.sub(section + "\n\n", brief, count=1).strip()
+    insert_before = re.search(r"(?m)^#{2,3}\s+Website Intelligence", brief)
+    if insert_before:
+        index = insert_before.start()
+        return (brief[:index].rstrip() + "\n\n" + section + "\n\n" + brief[index:].lstrip()).strip()
+    return (brief.rstrip() + "\n\n" + section).strip()
+
+
+def _campaign_decision_markdown(decision_context: DecisionContext) -> str:
+    decision = decision_context.summary.get("campaign_decision", {})
+    if not isinstance(decision, dict) or not decision:
+        return ""
+    budget = decision.get("budget_status", {})
+    evidence = decision.get("evidence", {})
+    rules_checked = decision.get("rules_checked", {})
+    failed_rules = decision.get("failed_rules", [])
+    answer = str(decision.get("campaign_run_answer") or "Campaign failed and automatic retry scheduled.")
+    ceo_action = "Yes" if decision.get("requires_ceo_action") else "No"
+    if isinstance(budget, dict):
+        budget_text = (
+            f"Daily limit ₪{budget.get('daily_budget_limit')}; "
+            f"monthly limit ₪{budget.get('monthly_budget_limit')}; "
+            f"reserved today ₪{budget.get('reserved_today')}; "
+            f"committed today ₪{budget.get('committed_today')}; "
+            f"spent today ₪{budget.get('spent_today')}; "
+            f"spent month ₪{budget.get('spent_month')}; "
+            f"remaining today ₪{budget.get('remaining_today')}; "
+            f"remaining month ₪{budget.get('remaining_month')}; "
+            f"allowed to launch: {budget.get('allowed_to_launch')}."
+        )
+    else:
+        budget_text = "Internal budget ledger unavailable."
+    launched = decision.get("state") in {"launched", "monitoring", "launch_approved"}
+    if launched:
+        evidence_text = (
+            f"Meta Campaign ID: {evidence.get('meta_campaign_id')}; "
+            f"Ad Set ID: {evidence.get('ad_set_id')}; "
+            f"Ad ID: {evidence.get('ad_id')}; "
+            f"Budget: {evidence.get('budget')}; "
+            f"Start time: {evidence.get('start_time')}; "
+            f"Linked Instagram post: {evidence.get('linked_instagram_post')}; "
+            f"Tracked WhatsApp link: {evidence.get('tracked_whatsapp_link')}."
+        )
+    else:
+        evidence_text = (
+            f"Rules checked: {', '.join(rules_checked.keys()) or 'none'}; "
+            f"Failed rules: {', '.join(str(rule) for rule in failed_rules) or 'none'}; "
+            f"Next retry time: {decision.get('next_retry_at') or evidence.get('next_retry_time')}."
+        )
+    return "\n".join(
+        [
+            "### Campaign Decision:",
+            f"- Decision: {answer}",
+            f"- Reason: {decision.get('reason')}",
+            f"- Budget: {budget_text}",
+            f"- Status: {decision.get('state')}",
+            f"- Next Automatic Action: {decision.get('next_automatic_action')}",
+            f"- Retry Time: {decision.get('next_retry_at') or evidence.get('next_retry_time')}",
+            f"- CEO Action Required: {ceo_action}",
+            f"- Evidence: {evidence_text}",
+        ]
+    )
+
+
 def validate_hebrew_brief_style(brief: str) -> None:
     found = [term for term in FORBIDDEN_TERMS if term in brief]
     if found:
@@ -563,4 +670,10 @@ def validate_executive_decision_brief_style(brief: str) -> None:
         raise RuntimeError(
             "English CEO brief is missing Executive Decision Brief sections: "
             + ", ".join(missing)
+        )
+
+    if not any(answer.lower() in lower_brief for answer in CAMPAIGN_AUTONOMY_ANSWERS):
+        raise RuntimeError(
+            "English CEO brief must answer campaign autonomy with launched, intentionally not launched, "
+            "blocked with CEO action, or failed with automatic retry."
         )

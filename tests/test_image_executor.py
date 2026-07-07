@@ -18,12 +18,18 @@ def _task(dry_run: bool = False) -> ExecutionTask:
         payload={
             "run_date": "2026-07-05",
             "prompt": (
-                "OpenAI-generated ChatBot2U branded image using approved colors and logo. "
-                "No text, no letters, no words, no Hebrew characters, no CTA text."
+                "Design a premium Hebrew-first ChatBot2U high-end SaaS advertisement for Israeli law firms. "
+                "Use a realistic product UI screenshot, ChatBot2U logo, and one clear WhatsApp CTA. "
+                "Professional typography, clean whitespace, modern landing-page aesthetic, and Hebrew-first hierarchy. "
+                "Forbidden: robots, floating icons, stock-looking graphics, cartoon assistants, generic AI artwork."
             ),
             "brand_assets": {"colors": ["#111827"], "logo": "logo.svg"},
-            "text_policy": "no_model_rendered_text",
-            "language_policy": "Hebrew caption only; no generated Hebrew text inside image",
+            "text_policy": "hebrew_first_ad_text_required_after_creative_director_approval",
+            "language_policy": "100% Hebrew visual hierarchy and CTA in the asset",
+            "creative_director_review": {
+                "approved": True,
+                "would_spend_20_ils_promoting_this": True,
+            },
         },
         delegated_authority_used="marketing.generate_images",
         initiative="Acquire first paying law firms",
@@ -78,7 +84,11 @@ class ImageExecutorTests(unittest.TestCase):
             id="bad-image",
             connector="ImageExecutor",
             action="generate_branded_social_image",
-            payload={"prompt": "Generic startup picture", "brand_assets": {}},
+            payload={
+                "prompt": "Generic startup picture",
+                "brand_assets": {},
+                "creative_director_review": {"approved": True},
+            },
             delegated_authority_used="marketing.generate_images",
             initiative="Acquire first paying law firms",
             expected_business_impact="High",
@@ -101,8 +111,7 @@ class ImageExecutorTests(unittest.TestCase):
         client = FakeImageClient(b"png")
         bad_task = _task()
         bad_task.payload["prompt"] = (
-            "ChatBot2U branded Instagram visual with clear Hebrew WhatsApp demo CTA "
-            "and text overlay using approved colors and logo."
+            "ChatBot2U branded robot illustration with floating icons and generic AI artwork."
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             result = ImageExecutor(
@@ -117,8 +126,8 @@ class ImageExecutorTests(unittest.TestCase):
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.error, "Brand validation failed.")
         errors = result.result["brand_validation_errors"]
-        self.assertTrue(any("hebrew whatsapp demo cta" in error for error in errors))
-        self.assertTrue(any("text overlay" in error for error in errors))
+        self.assertTrue(any("robot" in error for error in errors))
+        self.assertTrue(any("floating icons" in error for error in errors))
         self.assertEqual(client.calls, [])
 
     def test_success_stores_png_and_returns_proof(self) -> None:
@@ -140,7 +149,7 @@ class ImageExecutorTests(unittest.TestCase):
         self.assertEqual(result.status, "completed")
         self.assertEqual(result.proof["brand_validation"], "passed")
         self.assertEqual(result.proof["provider"], "openai")
-        self.assertEqual(result.proof["text_policy"], "no_model_rendered_text")
+        self.assertEqual(result.proof["text_policy"], "hebrew_first_ad_text_required_after_creative_director_approval")
         self.assertIn("sha256", result.artifact_ids)
 
     def test_public_url_required_blocks_without_upload_provider(self) -> None:

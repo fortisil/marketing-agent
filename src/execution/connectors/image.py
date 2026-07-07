@@ -44,25 +44,33 @@ class BrandValidator:
         for phrase in forbidden:
             if phrase in lowered:
                 failures.append(f"Forbidden brand phrase: {phrase}.")
-        forbidden_text_requests = [
-            "hebrew whatsapp demo cta",
-            "hebrew cta",
-            "text overlay",
-            "render text",
-            "include text",
-            "write text",
-            "words on image",
-            "letters",
-            "subtitles",
-            "caption in image",
+        forbidden_visuals = [
+            "robot",
+            "cartoon assistant",
+            "clipart",
+            "floating icons",
+            "ai icon pack",
+            "emoji style",
+            "stock-looking",
+            "generic gradient",
+            "generic ai artwork",
         ]
-        for phrase in forbidden_text_requests:
-            if f"no {phrase}" in lowered:
+        requested_visual_text = lowered.split("forbidden:", 1)[0]
+        for phrase in forbidden_visuals:
+            if f"forbidden: {phrase}" in lowered or f"no {phrase}" in lowered:
                 continue
-            if phrase in lowered:
-                failures.append(f"Forbidden generated text request: {phrase}.")
-        if "no text" not in lowered or "no letters" not in lowered:
-            failures.append("Image prompt must forbid model-rendered text and letters.")
+            if phrase in requested_visual_text:
+                failures.append(f"Forbidden low-quality visual request: {phrase}.")
+        required_phrases = [
+            "premium hebrew-first",
+            "high-end saas",
+            "realistic product ui screenshot",
+            "chatbot2u logo",
+            "whatsapp cta",
+        ]
+        for phrase in required_phrases:
+            if phrase not in lowered:
+                failures.append(f"Missing Creative Director requirement: {phrase}.")
         return not failures, failures
 
 
@@ -118,6 +126,19 @@ class ImageExecutor:
                 timezone=self.timezone,
                 error="Image task payload is missing prompt.",
                 next_retry=None,
+            )
+
+        creative_review = task.payload.get("creative_director_review", {})
+        if not isinstance(creative_review, dict) or not creative_review.get("approved"):
+            return ExecutionResult.blocked(
+                task,
+                timezone=self.timezone,
+                error="Creative Director rejected image generation before publishing.",
+                next_retry="after product screenshot and approved SaaS ad template assets are added",
+                result={
+                    "creative_director_review": creative_review,
+                    "required_standard": "Hebrew-first premium SaaS advertisement with product screenshot, logo, and WhatsApp CTA.",
+                },
             )
 
         valid, failures = self.validator.validate(

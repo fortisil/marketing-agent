@@ -234,6 +234,8 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("Include budget status only as operating proof", prompt)
         self.assertIn("Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`", prompt)
         self.assertIn("Include promotion only from `promotion_brain` and `budget_guard`", prompt)
+        self.assertIn("The brief must include a section titled exactly \"Campaign Decision\"", prompt)
+        self.assertIn("CEO Action Required must be exactly Yes or No", prompt)
         self.assertIn("Use `monitoring` for health status", prompt)
         self.assertIn("If there is no evidence, the action did not happen.", prompt)
         self.assertIn("Buffer update ID, Buffer post URL, publish status, timestamp, caption hash, image hash, and worker ID", prompt)
@@ -359,6 +361,16 @@ No verified post-performance data because Instagram Insights is not connected; c
 
 ## Campaign Intelligence
 Campaign is blocked by budget guard; if Meta becomes available launch Israeli law-firm WhatsApp objective at ₪20/day with ₪80 stop rule.
+
+## Campaign Decision
+- Decision: retry_later
+- Reason: Meta connector is missing.
+- Budget: ₪20/day, ₪600/month.
+- Status: Campaign failed and automatic retry scheduled.
+- Next Automatic Action: Retry Meta connector validation.
+- Retry Time: 2026-07-07 16:00 Asia/Jerusalem
+- CEO Action Required: No
+- Evidence: Rules checked; Failed rules: meta_connector_available; Next retry time: 2026-07-07 16:00 Asia/Jerusalem.
 
 ## Website Intelligence
 No verified click data because website analytics is not connected; review CTA path and open a PR if friction is found.

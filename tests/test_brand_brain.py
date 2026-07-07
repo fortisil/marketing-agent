@@ -31,7 +31,14 @@ class BrandBrainTests(unittest.TestCase):
         self.assertTrue(brand["cta"]["required_in_posts"])
         self.assertEqual(brand["image_generation"]["provider"], "openai")
         self.assertEqual(brand["image_generation"]["model"], "gpt-image-1")
-        self.assertEqual(brand["image_generation"]["text_policy"], "no_model_rendered_text")
+        self.assertEqual(
+            brand["image_generation"]["text_policy"],
+            "hebrew_first_ad_text_required_after_creative_director_approval",
+        )
+        self.assertEqual(
+            brand["image_generation"]["language_policy"],
+            "100% Hebrew visual hierarchy and CTA in the asset",
+        )
         self.assertEqual(brand["video_generation"]["provider"], "heygen")
         self.assertEqual(brand["video_generation"]["aspect_ratio"], "9:16")
         self.assertFalse(brand["video_generation"]["subtitles"])
