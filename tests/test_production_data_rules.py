@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
-from src.briefs.generator import build_prompt, validate_executive_decision_brief_style
+from src.briefs.generator import (
+    _ensure_executive_opening,
+    build_prompt,
+    validate_executive_decision_brief_style,
+)
 from src.decisions.engine import DecisionEngine
 from src.providers.base import MetricSnapshot
 from src.providers.whatsapp_bot import WhatsAppBotProvider
@@ -252,6 +257,51 @@ class ProductionDataRulesTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "business-health sentence"):
             validate_executive_decision_brief_style(brief)
+
+    def test_executive_opening_is_inserted_from_structured_measurement(self) -> None:
+        context = SimpleNamespace(
+            summary={
+                "executive_measurement": {
+                    "business_health": {
+                        "trend": "flat",
+                        "reason": [
+                            "- WhatsApp attribution is missing, so customer acquisition cannot be measured.",
+                        ],
+                    },
+                },
+            }
+        )
+
+        brief = _ensure_executive_opening("## Executive Decision\nNo verified result yet.", context)
+
+        self.assertTrue(
+            brief.startswith(
+                "Yesterday the business did not improve because WhatsApp attribution is missing"
+            )
+        )
+
+    def test_executive_opening_uses_improving_business_health(self) -> None:
+        context = SimpleNamespace(
+            summary={
+                "executive_measurement": {
+                    "business_health": {
+                        "status": "improving",
+                        "trend": "improving",
+                        "reason": [
+                            "+ Published customer-acquisition content with execution proof.",
+                        ],
+                    },
+                },
+            }
+        )
+
+        brief = _ensure_executive_opening("## Executive Decision\nMarket proof is under review.", context)
+
+        self.assertTrue(
+            brief.startswith(
+                "Yesterday the business became healthier because published customer-acquisition content"
+            )
+        )
 
     def test_executive_decision_brief_validator_rejects_bare_unavailable_rows(self) -> None:
         brief = """

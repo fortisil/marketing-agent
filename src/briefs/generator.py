@@ -500,7 +500,10 @@ def generate_brief(
             raise RuntimeError("OpenAI returned an empty brief.")
 
         normalized = _enforce_campaign_decision_section(
-            normalize_brief_language(content.strip()),
+            _ensure_executive_opening(
+                normalize_brief_language(content.strip()),
+                decision_context,
+            ),
             decision_context,
         )
         try:
@@ -553,6 +556,67 @@ def normalize_brief_language(brief: str) -> str:
     for source, target in replacements.items():
         normalized = normalized.replace(source, target)
     return normalized
+
+
+def _ensure_executive_opening(brief: str, decision_context: DecisionContext) -> str:
+    first_line = next((line.strip() for line in brief.splitlines() if line.strip()), "")
+    cleaned_first_line = re.sub(r"^[#>*_\-\s]+", "", first_line).strip()
+    if cleaned_first_line.startswith(EXECUTIVE_DECISION_STARTS):
+        return brief
+
+    opening = _structured_executive_opening(decision_context)
+    return f"{opening}\n\n{brief.lstrip()}".strip()
+
+
+def _structured_executive_opening(decision_context: DecisionContext) -> str:
+    measurement = decision_context.summary.get("executive_measurement", {})
+    if not isinstance(measurement, dict):
+        measurement = {}
+    business_health = measurement.get("business_health", {})
+    if not isinstance(business_health, dict):
+        business_health = {}
+
+    trend = str(business_health.get("trend") or "").lower()
+    status = str(business_health.get("status") or "").lower()
+    improved = trend == "improving" or status == "improving"
+    reason = _business_health_reason(business_health.get("reason"), improved=improved)
+
+    if improved:
+        return f"Yesterday the business became healthier because {reason}"
+    return f"Yesterday the business did not improve because {reason}"
+
+
+def _business_health_reason(value: Any, *, improved: bool) -> str:
+    fallback = (
+        "verified business-health signals improved."
+        if improved
+        else "no verified customer-acquisition improvement was proven yet."
+    )
+    if not isinstance(value, list):
+        return fallback
+
+    preferred_prefix = "+" if improved else "-"
+    candidates = [
+        str(item).strip()
+        for item in value
+        if isinstance(item, str) and str(item).strip().startswith(preferred_prefix)
+    ]
+    if not candidates:
+        candidates = [
+            str(item).strip()
+            for item in value
+            if isinstance(item, str) and str(item).strip()
+        ]
+    if not candidates:
+        return fallback
+
+    reason = re.sub(r"^[+\-]\s*", "", candidates[0]).strip()
+    if not reason:
+        return fallback
+    first_word = reason.split(maxsplit=1)[0]
+    if len(first_word) > 1 and first_word[1:].islower():
+        reason = reason[0].lower() + reason[1:]
+    return reason if reason.endswith((".", "!", "?")) else reason + "."
 
 
 def _enforce_campaign_decision_section(brief: str, decision_context: DecisionContext) -> str:
