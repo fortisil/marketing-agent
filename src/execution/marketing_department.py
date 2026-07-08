@@ -73,6 +73,7 @@ class MarketingDepartmentOutput:
     growth_intelligence: dict[str, Any] = field(default_factory=dict)
     executive_measurement: dict[str, Any] = field(default_factory=dict)
     operating_executive: dict[str, Any] = field(default_factory=dict)
+    revenue_cmo: dict[str, Any] = field(default_factory=dict)
     promotion_brain: dict[str, Any] = field(default_factory=dict)
     budget_guard: dict[str, Any] = field(default_factory=dict)
     campaign_decision: dict[str, Any] = field(default_factory=dict)
@@ -107,6 +108,7 @@ class MarketingDepartmentOutput:
             "growth_intelligence": self.growth_intelligence,
             "executive_measurement": self.executive_measurement,
             "operating_executive": self.operating_executive,
+            "revenue_cmo": self.revenue_cmo,
             "promotion_brain": self.promotion_brain,
             "budget_guard": self.budget_guard,
             "campaign_decision": self.campaign_decision,
@@ -252,6 +254,22 @@ class MarketingDepartment:
             run_date=decision_context.run_date,
             now=now,
         )
+        revenue_cmo = self._revenue_cmo_report(
+            content_intelligence=content_intelligence,
+            growth_intelligence=growth_intelligence,
+            executive_measurement=executive_measurement,
+            operating_executive=operating_executive,
+            promotion_brain=promotion_brain,
+            budget_guard=budget_guard,
+            campaign_decision=campaign_decision,
+            budget_status=budget_status,
+            creative_brief=creative_brief,
+            whatsapp_bot=whatsapp_bot,
+            meta_ads=meta_ads,
+            website_intelligence=website_intelligence,
+            buffer_result=buffer_result,
+            run_date=decision_context.run_date,
+        )
         video_output = self._video_output(cta, brand_intelligence)
         video_production = self._video_production(video_output.daily_output, brand_intelligence)
         social_output = self._social_output(
@@ -299,6 +317,7 @@ class MarketingDepartment:
             growth_intelligence=growth_intelligence,
             executive_measurement=executive_measurement,
             operating_executive=operating_executive,
+            revenue_cmo=revenue_cmo,
             promotion_brain=promotion_brain,
             budget_guard=budget_guard,
             campaign_decision=campaign_decision,
@@ -1411,6 +1430,344 @@ class MarketingDepartment:
                 "expected": "+2 demo opportunities if promoted and WhatsApp tracking confirms lead quality.",
                 "confidence": 0.81 if published else 0.68,
             },
+        }
+
+    def _revenue_cmo_report(
+        self,
+        *,
+        content_intelligence: dict[str, Any],
+        growth_intelligence: dict[str, Any],
+        executive_measurement: dict[str, Any],
+        operating_executive: dict[str, Any],
+        promotion_brain: dict[str, Any],
+        budget_guard: dict[str, Any],
+        campaign_decision: dict[str, Any],
+        budget_status: dict[str, Any],
+        creative_brief: dict[str, Any],
+        whatsapp_bot: dict[str, Any],
+        meta_ads: dict[str, Any],
+        website_intelligence: dict[str, Any],
+        buffer_result: ExecutionResult | None,
+        run_date: str,
+    ) -> dict[str, Any]:
+        primary_kpi = "Generate qualified law firm demos that convert into paying customers."
+        verified_whatsapp = bool(isinstance(whatsapp_bot, dict) and whatsapp_bot.get("verified"))
+        verified_meta = bool(isinstance(meta_ads, dict) and meta_ads.get("verified"))
+        published = buffer_result is not None and buffer_result.status == "completed"
+        proof = buffer_result.proof if published else {}
+        website_has_cta_gap = bool(
+            isinstance(website_intelligence, dict)
+            and website_intelligence.get("missing_or_weak_ctas")
+        )
+        creative_review = creative_brief.get("creative_director_review", {})
+        creative_approved = bool(creative_review.get("approved"))
+        campaign_state = str(campaign_decision.get("state") or "")
+
+        marketing_score = 6 if published else 4
+        if verified_whatsapp:
+            marketing_score += 2
+        if verified_meta:
+            marketing_score += 1
+        marketing_score = min(marketing_score, 10)
+
+        website_score = 5 if website_has_cta_gap else 7
+        instagram_score = 7 if published else 3
+        meta_ads_score = 6 if verified_meta else 3
+        sales_funnel_score = 7 if verified_whatsapp else 2
+
+        post_score_dimensions = {
+            "hook": 8 if creative_approved else 5,
+            "trust": 8 if creative_approved else 5,
+            "professionalism": 8 if creative_approved else 5,
+            "visual_quality": 8 if creative_approved else 4,
+            "clear_value_proposition": 8 if creative_approved else 5,
+            "call_to_action": 8 if creative_approved else 6,
+            "relevance_to_law_firms": 9 if creative_approved else 6,
+        }
+        post_score = round(sum(post_score_dimensions.values()) / len(post_score_dimensions))
+
+        if campaign_state in {"launched", "monitoring"}:
+            meta_decision = "Scale" if verified_meta else "Launch"
+            meta_why = "Campaign is live; evaluate verified lead quality before increasing spend."
+        elif not creative_approved:
+            meta_decision = "Change creative"
+            meta_why = "Do not spend until the creative meets the Hebrew SaaS ad quality bar."
+        elif not budget_guard.get("allowed_to_launch"):
+            meta_decision = "Pause"
+            meta_why = "Budget Guard failed at least one rule; spending must stay stopped."
+        else:
+            meta_decision = "Launch"
+            meta_why = "Exploration Mode permits one guarded campaign if Meta execution is available."
+
+        channels = {
+            "Instagram": self._revenue_channel_review(
+                status="published" if published else "no_completed_publish_in_latest_run",
+                revenue_signal="pending WhatsApp clicks and demo requests",
+                metrics=growth_intelligence.get("instagram", {}),
+                action=(
+                    "Review all published assets by hook, trust, CTA, and qualified-demo signal."
+                    if published
+                    else "Publish only after Creative Director approves a Hebrew, product-led ad."
+                ),
+            ),
+            "Facebook": self._revenue_channel_review(
+                status="unavailable",
+                revenue_signal="No verified Facebook lead signal.",
+                metrics={},
+                action="Reuse only proven Instagram creative after lead signal exists.",
+            ),
+            "LinkedIn": self._revenue_channel_review(
+                status="unavailable",
+                revenue_signal="No verified founder or law-firm engagement signal.",
+                metrics={},
+                action="Test founder-led proof posts after Instagram/WhatsApp attribution is measurable.",
+            ),
+            "Website": self._revenue_channel_review(
+                status="needs_attention" if website_has_cta_gap else "monitoring",
+                revenue_signal="Visit-to-WhatsApp conversion is the revenue path.",
+                metrics=growth_intelligence.get("website", {}),
+                action=(
+                    "Fix the weak above-fold demo/WhatsApp CTA before scaling paid traffic."
+                    if website_has_cta_gap
+                    else "Keep monitoring conversion and CTA clicks."
+                ),
+            ),
+            "WhatsApp": self._revenue_channel_review(
+                status="verified" if verified_whatsapp else "unavailable",
+                revenue_signal="Primary lead and demo attribution source.",
+                metrics=growth_intelligence.get("whatsapp", {}),
+                action=(
+                    "Analyze objections and demo intent."
+                    if verified_whatsapp
+                    else "Connect the WhatsApp bot event log/webhook and classify every conversation."
+                ),
+            ),
+            "Google Business Profile": self._revenue_channel_review(
+                status="unavailable",
+                revenue_signal="No verified local-search demo signal.",
+                metrics={},
+                action="Review profile only after higher-impact attribution and CTA gaps are addressed.",
+            ),
+            "Meta Ads": self._revenue_channel_review(
+                status="verified" if verified_meta else "unavailable",
+                revenue_signal="Exploration spend can create learning; optimization requires attribution.",
+                metrics=growth_intelligence.get("meta_ads", {}),
+                action=meta_why,
+            ),
+            "Landing pages": self._revenue_channel_review(
+                status="needs_attention" if website_has_cta_gap else "monitoring",
+                revenue_signal="Landing page clarity controls paid and organic conversion.",
+                metrics=growth_intelligence.get("website", {}),
+                action="Improve headline, proof, demo CTA, and WhatsApp path for Israeli law firms.",
+            ),
+            "Email campaigns": self._revenue_channel_review(
+                status="unavailable",
+                revenue_signal="No verified email-to-demo signal.",
+                metrics={},
+                action="Do not prioritize until outbound list and attribution are available.",
+            ),
+            "CRM / lead pipeline": self._revenue_channel_review(
+                status="unavailable" if not verified_whatsapp else "partial",
+                revenue_signal="Needed to connect demos to customers and revenue.",
+                metrics={
+                    "qualified_leads": growth_intelligence.get("whatsapp", {}).get("qualified_leads"),
+                    "booked_demos": growth_intelligence.get("whatsapp", {}).get("booked_demos"),
+                    "customers": growth_intelligence.get("whatsapp", {}).get("customers"),
+                },
+                action="Track lead source, demo status, lost reason, customer status, and revenue.",
+            ),
+        }
+
+        top_priorities = [
+            {
+                "rank": 1,
+                "action": "Connect WhatsApp attribution from post/link to conversation, demo, and customer.",
+                "expected_revenue_impact": "Very high",
+                "effort": "Low",
+                "expected_impact": "Turns publishing and paid spend into measurable customer acquisition decisions.",
+                "time_to_results": "1-3 days after event log is connected",
+            },
+            {
+                "rank": 2,
+                "action": "Replace generic creative with one Hebrew product-led law-firm ad before promotion.",
+                "expected_revenue_impact": "High",
+                "effort": "Medium",
+                "expected_impact": "Improves trust, CTA clarity, and probability of a qualified WhatsApp demo.",
+                "time_to_results": "Same day after publishing",
+            },
+            {
+                "rank": 3,
+                "action": "Run one guarded Exploration Mode campaign only after creative and CTA pass review.",
+                "expected_revenue_impact": "High",
+                "effort": "Medium",
+                "expected_impact": "Creates paid learning without exceeding ₪20/day or ₪100 per experiment.",
+                "time_to_results": "24-72 hours after launch",
+            },
+        ]
+
+        return {
+            "role": "Revenue CMO",
+            "primary_kpi": primary_kpi,
+            "revenue_metrics": [
+                "Qualified leads",
+                "Demo bookings",
+                "Closed customers",
+                "Cost per qualified lead",
+                "Customer acquisition cost",
+                "Revenue",
+            ],
+            "vanity_metric_policy": "Never optimize followers, impressions, likes, posts, or activity unless they improve revenue metrics.",
+            "decision_framework": (
+                "When uncertain, choose the action most likely to generate a qualified law firm demo within the next 30 days."
+            ),
+            "daily_review_questions": [
+                "What changed since yesterday?",
+                "Did we get any new leads?",
+                "Did anyone book a demo?",
+                "Which marketing activity produced the most value?",
+                "What should we do today to maximize revenue?",
+                "Should Meta Ads be launched, paused, or changed?",
+                "What is the single highest-ROI task for today?",
+            ],
+            "scores": {
+                "marketing": {
+                    "score": marketing_score,
+                    "reason": "Execution exists; revenue confidence depends on attribution and creative quality.",
+                },
+                "website": {
+                    "score": website_score,
+                    "reason": "Weak CTA detected." if website_has_cta_gap else "No major CTA gap detected in available data.",
+                },
+                "instagram": {
+                    "score": instagram_score,
+                    "reason": "Latest asset has publish proof." if published else "No completed Instagram artifact in this run.",
+                },
+                "meta_ads": {
+                    "score": meta_ads_score,
+                    "reason": "Verified Meta data exists." if verified_meta else "Meta execution/metrics are not verified.",
+                },
+                "sales_funnel": {
+                    "score": sales_funnel_score,
+                    "reason": (
+                        "WhatsApp funnel data is verified."
+                        if verified_whatsapp
+                        else "Closed-loop WhatsApp-to-demo attribution is missing."
+                    ),
+                },
+            },
+            "channel_review": channels,
+            "published_post_review": {
+                "asset": proof.get("instagram_url") or proof.get("buffer_post_url"),
+                "buffer_update_id": proof.get("buffer_update_id"),
+                "score": post_score if published else None,
+                "threshold": 8,
+                "below_threshold": bool(published and post_score < 8),
+                "dimensions": post_score_dimensions if published else {},
+                "explanation": (
+                    "Creative is acceptable for promotion review."
+                    if published and post_score >= 8
+                    else "Creative must be improved before paid promotion; generic or unclear assets hurt trust."
+                    if published
+                    else "No published asset proof is available for scoring."
+                ),
+                "recommendation": (
+                    "Promote only if WhatsApp/engagement signal passes Exploration Mode criteria."
+                    if published and post_score >= 8
+                    else "Create a Hebrew product-led ad with real product screenshot, proof, offer, and WhatsApp CTA."
+                ),
+            },
+            "creative_director_standard": {
+                "forbidden": [
+                    "generic AI artwork",
+                    "robots",
+                    "floating icons",
+                    "stock-looking graphics",
+                    "English-first visual hierarchy",
+                ],
+                "preferred": [
+                    "founder content",
+                    "product screenshots",
+                    "customer stories",
+                    "before/after workflows",
+                    "short demo videos",
+                    "WhatsApp conversations",
+                    "real legal examples",
+                    "testimonials",
+                    "ROI proof",
+                ],
+                "quality_bar": "Would I spend ₪20 promoting this to Israeli law firms?",
+            },
+            "meta_ads_decision": {
+                "decision": meta_decision,
+                "why": meta_why,
+                "allowed_decisions": [
+                    "Launch",
+                    "Pause",
+                    "Scale",
+                    "Reduce budget",
+                    "Change audience",
+                    "Change creative",
+                    "Change objective",
+                    "Duplicate winning ad",
+                ],
+                "budget": {
+                    "daily_limit_ils": budget_guard.get("daily_budget_limit"),
+                    "monthly_limit_ils": budget_guard.get("monthly_budget_limit"),
+                    "allowed_to_launch": budget_guard.get("allowed_to_launch"),
+                    "failed_rules": budget_guard.get("failed_rules", []),
+                },
+                "campaign_decision_id": campaign_decision.get("decision_id"),
+                "next_review": campaign_decision.get("next_retry_at") or f"{run_date} 16:00 Asia/Jerusalem",
+            },
+            "highest_impact_recommendation": top_priorities[0],
+            "top_3_priorities": top_priorities,
+            "risks": [
+                {
+                    "risk": "The AI optimizes publishing instead of qualified demos.",
+                    "severity": "High",
+                    "mitigation": "Revenue CMO contract rejects activity-only recommendations.",
+                },
+                {
+                    "risk": "Creative quality damages trust with law firms.",
+                    "severity": "High",
+                    "mitigation": "Creative Director blocks generic images and requires Hebrew product-led ads.",
+                },
+                {
+                    "risk": "Budget is spent before attribution proves lead quality.",
+                    "severity": "High",
+                    "mitigation": "Exploration Mode limits one campaign, ₪20/day, and ₪100 per experiment.",
+                },
+            ],
+            "recommended_next_action": top_priorities[0]["action"],
+            "business_question": "What prevents ChatBot2U from acquiring another paying law-firm customer?",
+            "source_of_truth": "Revenue CMO report is derived from execution proof, attribution, budget guard, campaign decision, website intelligence, and channel evidence.",
+            "operating_executive_status": operating_executive.get("daily_ceo_brief_standard"),
+        }
+
+    def _revenue_channel_review(
+        self,
+        *,
+        status: str,
+        revenue_signal: str,
+        metrics: dict[str, Any],
+        action: str,
+    ) -> dict[str, Any]:
+        return {
+            "status": status,
+            "revenue_signal": revenue_signal,
+            "metrics": {
+                "reach": metrics.get("reach"),
+                "engagement": metrics.get("engagement"),
+                "click_through_rate": metrics.get("ctr") or metrics.get("click_through_rate"),
+                "leads_generated": metrics.get("qualified_leads"),
+                "demo_requests": metrics.get("demo_requests"),
+                "cost_per_lead": metrics.get("cpl"),
+                "conversion_rate": metrics.get("conversion_rate"),
+                "best_performing_content": metrics.get("best_performing_content"),
+                "worst_performing_content": metrics.get("worst_performing_content"),
+            },
+            "trend_policy": "Use trends over isolated events.",
+            "recommended_action": action,
         }
 
     def _operating_executive(
@@ -2700,6 +3057,7 @@ def attach_marketing_department_output(
     decision_context.summary["growth_intelligence"] = payload.get("growth_intelligence", {})
     decision_context.summary["executive_measurement"] = payload.get("executive_measurement", {})
     decision_context.summary["operating_executive"] = payload.get("operating_executive", {})
+    decision_context.summary["revenue_cmo"] = payload.get("revenue_cmo", {})
     decision_context.summary["promotion_brain"] = payload.get("promotion_brain", {})
     decision_context.summary["budget_guard"] = payload.get("budget_guard", {})
     decision_context.summary["campaign_decision"] = payload.get("campaign_decision", {})

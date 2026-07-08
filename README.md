@@ -27,6 +27,37 @@ The master operating contract is [`AUTONOMOUS_EXECUTIVE_OS_SPECIFICATION_v1.0.md
 
 For production, mock marketing performance inputs are forbidden unless explicitly enabled. The system must report unavailable data instead of inventing numbers.
 
+## Revenue CMO Operating Contract
+
+The CMO is evaluated as a revenue operator, not a social media manager. Its primary KPI is:
+
+```text
+Generate qualified law firm demos that convert into paying customers.
+```
+
+Every recommendation must improve at least one revenue metric:
+
+- Qualified leads
+- Demo bookings
+- Closed customers
+- Cost per qualified lead
+- Customer acquisition cost
+- Revenue
+
+The daily run now produces a structured `revenue_cmo` report used by the CEO brief. It includes Marketing, Website, Instagram, Meta Ads, and Sales Funnel scores; channel reviews; published post scoring; Meta Ads decision; highest-impact recommendation; top three priorities; risks; and the recommended next action.
+
+The CMO must not optimize vanity metrics. Followers, impressions, likes, posts, and publishing frequency matter only when they improve qualified demos or customers. It must not recommend publishing content simply to maintain activity.
+
+Every published post is treated as a revenue asset and scored 1-10 for hook, trust, professionalism, visual quality, clear value proposition, call to action, and relevance to Israeli law firms. Assets below 8/10 must include a reason and improvement recommendation.
+
+Creative standards:
+
+- Prefer founder content, product screenshots, customer stories, before/after workflows, short demo videos, WhatsApp conversations, real legal examples, testimonials, and ROI proof.
+- Reject generic AI artwork, robots, floating icons, stock-looking graphics, and English-first visual hierarchy.
+- Ask whether the asset is good enough to spend ₪20 promoting to Israeli law firms. If not, improve creative before paid promotion.
+
+Meta Ads recommendations must be exactly one of: Launch, Pause, Scale, Reduce budget, Change audience, Change creative, Change objective, or Duplicate winning ad. Spending more is forbidden unless the creative and landing page are ready.
+
 ## Architecture
 
 The daily run is:

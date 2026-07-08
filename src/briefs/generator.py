@@ -19,6 +19,7 @@ EXECUTIVE_DECISION_STARTS = (
 EXECUTIVE_DECISION_REQUIRED_MARKERS = (
     "Executive Decision",
     "EXECUTIVE SCOREBOARD",
+    "Revenue CMO",
     "Manager Performance",
     "Executive Summary",
     "Yesterday",
@@ -96,9 +97,18 @@ Data confidence:
 - Medium: partial real data
 - Low: no verified data / mock disabled
 
-Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `operating_executive`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `campaign_decision`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
+Use the `data_confidence`, `data_status`, `metric_sources`, `execution_reality`, `execution_queue`, `connector_execution`, `autonomous_work_completion_rate`, `revenue_influence_score`, `business_autonomy_index`, `executive_measurement`, `operating_executive`, `revenue_cmo`, `growth_intelligence`, `promotion_brain`, `budget_status`, `budget_guard`, `campaign_decision`, `content_intelligence`, `decision_ledger`, `hypothesis_register`, `business_memory`, `monitoring`, `weekly_executive_review`, `acceptance_criteria`, `final_definition_of_done`, `self_evaluation`, `workforce`, `marketing_department`, `whatsapp_bot`, `meta_ads`, `website_intelligence`, and `brand_intelligence` fields from the DailyReport as source of truth.
 
 Hard rules:
+- The active role is Revenue CMO, not social media manager. The primary KPI is: generate qualified law firm demos that convert into paying customers.
+- Use `revenue_cmo` as the source of truth for marketing scores, channel review, post scoring, Meta Ads recommendation, highest-impact recommendation, top 3 priorities, risks, and recommended next action.
+- Every recommendation must improve one of these metrics: qualified leads, demo bookings, closed customers, cost per qualified lead, customer acquisition cost, or revenue.
+- Do not optimize vanity metrics. Followers, impressions, likes, posts, and publishing frequency matter only if they increase qualified demos or customers.
+- Never recommend publishing content simply to maintain activity.
+- Every published post must be reviewed as a revenue asset, scored 1-10 for hook, trust, professionalism, visual quality, value proposition, CTA, and relevance to Israeli law firms. If below 8/10, explain why and how to improve it.
+- The Creative Director must prefer founder content, product screenshots, customer stories, before/after workflows, short demo videos, WhatsApp conversations, real legal examples, testimonials, and ROI proof. Do not recommend generic AI artwork, robots, floating icons, or stock-looking graphics.
+- Meta Ads recommendations must be exactly one of: Launch, Pause, Scale, Reduce budget, Change audience, Change creative, Change objective, or Duplicate winning ad. Always explain why.
+- Never recommend spending more money unless the creative and landing page are ready.
 - Every section must serve one sentence: "This capability increases the probability that ChatBot2U acquires another paying customer." If it does not, omit it.
 - The Executive OS is not evaluated by activities. It is evaluated by measurable business improvement.
 - Every morning the AI must prove that the probability of acquiring another paying customer increased. If it cannot prove that, its highest priority is discovering why.
@@ -171,77 +181,83 @@ Keep the CEO brief concise. Use these sections in this order:
    - Include Business Health, Marketing Health, Revenue Momentum, Pipeline, Booked Demos, New Customers, Monthly Revenue, Marketing ROI, Today's Confidence, Business Autonomy, and Status.
    - Business Health must never be unavailable. Use `executive_measurement.business_health.score`, status, reason, and trend.
    - Use "No verified data available yet" only for unverified numeric KPIs, and explain why in the relevant intelligence section.
-3. Manager Performance:
+3. Revenue CMO:
+   - Use `revenue_cmo`.
+   - Include Primary KPI, Marketing Score, Website Score, Instagram Score, Meta Ads Score, Sales Funnel Score, Highest-impact recommendation, Top 3 priorities, Risks, and Recommended next action.
+   - Answer the seven daily Revenue CMO questions: what changed, new leads, demo bookings, most valuable activity, today's revenue-maximizing action, Meta Ads decision, and single highest-ROI task.
+   - Include a short post-review verdict if a published asset exists, including the 1-10 score and whether it passed the 8/10 quality bar.
+   - Do not report vanity metrics unless connected to qualified leads, demo bookings, customers, CPL, CAC, or revenue.
+4. Manager Performance:
    - The CEO should feel like reading reports from an executive team, not software logs.
    - Use `operating_executive.manager_reports`.
    - Include Social Manager, Ads Manager, Analytics Manager, Website Manager, Creative Director, and Growth Manager.
    - For each manager show: Status, Business Objective, Current KPI, Trend, Risk, Decision, Next Review.
    - Highlight which managers performed well and which need attention.
-4. Executive Summary:
+5. Executive Summary:
    - Maximum five bullets.
    - Business outcome first, not activity first.
-5. Yesterday:
+6. Yesterday:
    - Created, Published, Promoted, Website changes, Videos, Images, Emails, Campaigns, PRs, Competitor analysis, Learning completed.
    - Every completed line must include evidence or say none completed.
-6. Results:
+7. Results:
    - Instagram, WhatsApp clicks, website visits, conversion, demo requests, booked demos, customers, revenue.
    - Compare to yesterday, last week, and average only when real data exists.
    - If a result is missing, explain why, business impact, automatic action, expected review/completion, and confidence.
-7. Business Funnel:
+8. Business Funnel:
    - Reach -> Clicks -> WhatsApp -> Qualified -> Demo -> Customer.
    - For each step show Current, Yesterday, Change, Target, Conversion, Bottleneck.
    - Highlight the bottleneck automatically.
-8. Content Intelligence:
+9. Content Intelligence:
    - Score every published asset when verified data exists.
    - Include Business Value Score, Creative Score, Conversion Score, Expected ROI, Recommendation, and Reason.
    - If the post is under review, use `executive_measurement.instagram_performance`: published time, current metrics, reason metrics are missing, automatic action, review time, and recommendation.
    - Use `operating_executive.content_registry` for lifecycle: Published, Measured, Ranked, Promoted, Retired, Learning, Business Value Score.
-9. Campaign Intelligence:
+10. Campaign Intelligence:
    - Show organic/running status, spend, CTR, CPC, WhatsApp, qualified, demos, customers, recommendation, expected ROI.
    - If Meta is unavailable, show `executive_measurement.campaign_if_available.campaign_to_launch`: audience, budget, objective, expected CPL, stop rule, schedule, and why it is blocked.
    - Use `operating_executive.campaign_registry`. Never write "Campaign unavailable"; show registry status, status reason, and next campaign decision.
-10. Campaign Decision:
+11. Campaign Decision:
    - Use `campaign_decision` only.
    - Use the exact required structure and one of the four explicit campaign answers.
    - Include budget fields from `campaign_decision.budget_status`, not inferred prose.
    - CEO Action Required must be exactly Yes or No.
-11. Website Intelligence:
+12. Website Intelligence:
    - Visitors, conversion, CTA clicks, most viewed page, worst page, bounce, top search query, recommendation, and whether to open a PR.
    - Use `operating_executive.website_management`.
-12. Competitor Intelligence:
+13. Competitor Intelligence:
    - Analyzed, top campaign, opportunity, threat, recommended response. If not connected, say unavailable.
    - If not connected, say what public/platform signal will be used until competitor monitoring exists.
    - Use `operating_executive.competitor_registry`.
-13. WhatsApp Intelligence:
+14. WhatsApp Intelligence:
    - Conversations, qualified, demo requests, booked, closed, lost, most common objection, response quality, average response time, recommendation.
    - If missing, use `executive_measurement.whatsapp_measurement`: status, business impact, automatic action, expected completion, confidence.
    - Use `operating_executive.whatsapp_intelligence` for intent, objections, drop-offs, booking quality, lead quality, lost reasons, and recommendation.
-14. Decision Ledger:
+15. Decision Ledger:
    - Today's decisions, reason, expected outcome, and how success will be measured.
-15. Currently Working:
+16. Currently Working:
    - Only real work in progress. No fake progress, no "ready", no "prepared", no "queued".
    - Use `executive_measurement.today_operating_work` for what the AI is doing today while Rami is working.
    - Use `operating_executive.self_management.manager_actions` to show what will happen automatically today.
-16. Self Evaluation:
+17. Self Evaluation:
    - Yesterday's prediction, result, prediction confidence, learning, and whether a Business Memory rule was added.
    - If evidence is pending, say when the prediction will be reviewed and what changes if it is wrong.
-17. Business Memory:
+18. Business Memory:
    - New learning only. If none is verified, say none verified.
    - Use `operating_executive.executive_memory` for campaigns, experiments, insights, failures, successful strategies, creative patterns, promotion history, and budget history.
-18. Budget:
+19. Budget:
    - Use `operating_executive.internal_budget_ledger`.
    - Show Monthly budget, Reserved, Committed, Spent, Forecast, Remaining, per campaign, per experiment, and per asset.
    - Budget is internally authoritative even when Meta reconciliation is pending.
-19. Opportunity Ranking:
+20. Opportunity Ranking:
    - The most important section. Rank today's opportunities by expected customer-acquisition impact and confidence.
    - Do not list the mission as the opportunity. Use `executive_measurement.opportunity`.
-20. Risks:
+21. Risks:
    - Real business risks and mitigations.
-21. Executive Calendar:
+22. Executive Calendar:
    - Today only. Show what the AI will do and when, using local Israel time.
-22. Proof:
+23. Proof:
    - Evidence IDs/URLs/hashes for every completed action.
-23. CEO Question:
+24. CEO Question:
    - End with exactly one sentence: "If I were the CEO today, I would focus on: ___ because ___."
 
 Do not include long internal task lists in the CEO brief. Those belong in memory under `execution_queue`.
@@ -364,6 +380,7 @@ def _compact_prompt_payload(decision_context: DecisionContext) -> dict[str, Any]
             "business_autonomy_index",
             "executive_measurement",
             "operating_executive",
+            "revenue_cmo",
             "growth_intelligence",
             "promotion_brain",
             "budget_status",
@@ -385,6 +402,8 @@ def _compact_prompt_payload(decision_context: DecisionContext) -> dict[str, Any]
         ]
         if key in summary
     }
+    if isinstance(selected_summary.get("revenue_cmo"), dict):
+        selected_summary["revenue_cmo"] = _compact_revenue_cmo(selected_summary["revenue_cmo"])
     return _compact_value(
         {
             "run_date": decision_context.run_date,
@@ -422,6 +441,24 @@ def _compact_prompt_payload(decision_context: DecisionContext) -> dict[str, Any]
         },
         depth=0,
     )
+
+
+def _compact_revenue_cmo(report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "role": report.get("role"),
+        "primary_kpi": report.get("primary_kpi"),
+        "revenue_metrics": report.get("revenue_metrics"),
+        "vanity_metric_policy": report.get("vanity_metric_policy"),
+        "decision_framework": report.get("decision_framework"),
+        "daily_review_questions": report.get("daily_review_questions"),
+        "scores": report.get("scores"),
+        "published_post_review": report.get("published_post_review"),
+        "meta_ads_decision": report.get("meta_ads_decision"),
+        "highest_impact_recommendation": report.get("highest_impact_recommendation"),
+        "top_3_priorities": report.get("top_3_priorities"),
+        "risks": report.get("risks"),
+        "recommended_next_action": report.get("recommended_next_action"),
+    }
 
 
 def _compact_value(value: Any, *, depth: int) -> Any:
@@ -500,8 +537,11 @@ def generate_brief(
             raise RuntimeError("OpenAI returned an empty brief.")
 
         normalized = _enforce_campaign_decision_section(
-            _ensure_executive_opening(
-                normalize_brief_language(content.strip()),
+            _enforce_revenue_cmo_section(
+                _ensure_executive_opening(
+                    normalize_brief_language(content.strip()),
+                    decision_context,
+                ),
                 decision_context,
             ),
             decision_context,
@@ -617,6 +657,87 @@ def _business_health_reason(value: Any, *, improved: bool) -> str:
     if len(first_word) > 1 and first_word[1:].islower():
         reason = reason[0].lower() + reason[1:]
     return reason if reason.endswith((".", "!", "?")) else reason + "."
+
+
+def _enforce_revenue_cmo_section(brief: str, decision_context: DecisionContext) -> str:
+    section = _revenue_cmo_markdown(decision_context)
+    if not section:
+        return brief
+    pattern = re.compile(r"(?ms)^#{2,3}\s+Revenue CMO:?.*?(?=^#{2,3}\s+|\Z)")
+    if pattern.search(brief):
+        return pattern.sub(section + "\n\n", brief, count=1).strip()
+    insert_before = re.search(r"(?m)^#{2,3}\s+Manager Performance", brief)
+    if insert_before:
+        index = insert_before.start()
+        return (brief[:index].rstrip() + "\n\n" + section + "\n\n" + brief[index:].lstrip()).strip()
+    insert_after = re.search(r"(?ms)^#{2,3}\s+EXECUTIVE SCOREBOARD:?.*?(?=^#{2,3}\s+|\Z)", brief)
+    if insert_after:
+        index = insert_after.end()
+        return (brief[:index].rstrip() + "\n\n" + section + "\n\n" + brief[index:].lstrip()).strip()
+    return (brief.rstrip() + "\n\n" + section).strip()
+
+
+def _revenue_cmo_markdown(decision_context: DecisionContext) -> str:
+    report = decision_context.summary.get("revenue_cmo", {})
+    if not isinstance(report, dict) or not report:
+        return ""
+
+    scores = report.get("scores", {})
+    priorities = report.get("top_3_priorities", [])
+    risks = report.get("risks", [])
+    meta_decision = report.get("meta_ads_decision", {})
+    post_review = report.get("published_post_review", {})
+    highest = report.get("highest_impact_recommendation", {})
+
+    def score_line(name: str, key: str) -> str:
+        item = scores.get(key, {}) if isinstance(scores, dict) else {}
+        return f"- {name}: {item.get('score')}/10. {item.get('reason')}"
+
+    priority_lines = []
+    if isinstance(priorities, list):
+        for item in priorities[:3]:
+            if isinstance(item, dict):
+                priority_lines.append(
+                    f"  {item.get('rank')}. {item.get('action')} "
+                    f"(Impact: {item.get('expected_revenue_impact')}; Effort: {item.get('effort')}; "
+                    f"Time: {item.get('time_to_results')})"
+                )
+
+    risk_lines = []
+    if isinstance(risks, list):
+        for item in risks[:3]:
+            if isinstance(item, dict):
+                risk_lines.append(f"  - {item.get('risk')} Mitigation: {item.get('mitigation')}")
+
+    daily_questions = report.get("daily_review_questions", [])
+    question_text = "; ".join(str(item) for item in daily_questions[:7]) if isinstance(daily_questions, list) else ""
+    post_score = post_review.get("score") if isinstance(post_review, dict) else None
+    post_text = (
+        f"{post_score}/10; {post_review.get('explanation')} Recommendation: {post_review.get('recommendation')}"
+        if post_score is not None
+        else "No published asset proof is available for scoring."
+    )
+
+    lines = [
+        "### Revenue CMO",
+        f"- Primary KPI: {report.get('primary_kpi')}",
+        score_line("Marketing Score", "marketing"),
+        score_line("Website Score", "website"),
+        score_line("Instagram Score", "instagram"),
+        score_line("Meta Ads Score", "meta_ads"),
+        score_line("Sales Funnel Score", "sales_funnel"),
+        f"- Highest-impact recommendation: {highest.get('action') if isinstance(highest, dict) else report.get('highest_impact_recommendation')}",
+        "- Top 3 priorities:",
+        *priority_lines,
+        f"- Meta Ads decision: {meta_decision.get('decision') if isinstance(meta_decision, dict) else None}. {meta_decision.get('why') if isinstance(meta_decision, dict) else None}",
+        f"- Published post review: {post_text}",
+        "- Risks:",
+        *risk_lines,
+        f"- Recommended next action: {report.get('recommended_next_action')}",
+        f"- Daily Revenue CMO questions: {question_text}",
+        f"- Vanity metric rule: {report.get('vanity_metric_policy')}",
+    ]
+    return "\n".join(str(line) for line in lines if str(line).strip())
 
 
 def _enforce_campaign_decision_section(brief: str, decision_context: DecisionContext) -> str:

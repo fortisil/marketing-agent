@@ -172,6 +172,54 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("https://wa.me/972559720244", content["cta"])
         self.assertNotIn("Book a demo", content["cta"])
 
+    def test_revenue_cmo_contract_prioritizes_law_firm_customers(self) -> None:
+        context = _context()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = MarketingDepartment(
+                company_config=_company_config(),
+                objectives_config=_objectives_config(),
+                timezone="Asia/Jerusalem",
+                memory_root=Path(tmpdir),
+            ).run(context)
+
+        revenue_cmo = output.to_dict()["revenue_cmo"]
+
+        self.assertEqual(revenue_cmo["role"], "Revenue CMO")
+        self.assertEqual(
+            revenue_cmo["primary_kpi"],
+            "Generate qualified law firm demos that convert into paying customers.",
+        )
+        self.assertIn("Qualified leads", revenue_cmo["revenue_metrics"])
+        self.assertIn("Customer acquisition cost", revenue_cmo["revenue_metrics"])
+        self.assertIn("Never optimize followers", revenue_cmo["vanity_metric_policy"])
+        self.assertEqual(
+            set(revenue_cmo["scores"].keys()),
+            {"marketing", "website", "instagram", "meta_ads", "sales_funnel"},
+        )
+        self.assertIn("WhatsApp", revenue_cmo["channel_review"])
+        self.assertIn("CRM / lead pipeline", revenue_cmo["channel_review"])
+        self.assertEqual(len(revenue_cmo["top_3_priorities"]), 3)
+        self.assertEqual(revenue_cmo["highest_impact_recommendation"]["rank"], 1)
+        self.assertIn(
+            revenue_cmo["meta_ads_decision"]["decision"],
+            {
+                "Launch",
+                "Pause",
+                "Scale",
+                "Reduce budget",
+                "Change audience",
+                "Change creative",
+                "Change objective",
+                "Duplicate winning ad",
+            },
+        )
+        self.assertIn("generic AI artwork", revenue_cmo["creative_director_standard"]["forbidden"])
+        self.assertIn("product screenshots", revenue_cmo["creative_director_standard"]["preferred"])
+
+        attach_marketing_department_output(context, output)
+        self.assertIn("revenue_cmo", context.summary)
+        self.assertEqual(context.summary["revenue_cmo"]["role"], "Revenue CMO")
+
     def test_aeos_spec_outputs_are_business_outcome_oriented(self) -> None:
         context = _context()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -304,6 +352,7 @@ class MarketingDepartmentTests(unittest.TestCase):
         self.assertIn("growth_intelligence", context.summary)
         self.assertIn("executive_measurement", context.summary)
         self.assertIn("operating_executive", context.summary)
+        self.assertIn("revenue_cmo", context.summary)
         self.assertIn("promotion_brain", context.summary)
         self.assertIn("budget_guard", context.summary)
         self.assertIn("campaign_decision", context.summary)
@@ -371,6 +420,10 @@ class MarketingDepartmentTests(unittest.TestCase):
 
         self.assertLess(len(prompt), 70000)
         self.assertIn("operating_executive", prompt)
+        self.assertIn("revenue_cmo", prompt)
+        self.assertIn("Revenue CMO", prompt)
+        self.assertIn("qualified law firm demos", prompt)
+        self.assertIn("Do not optimize vanity metrics", prompt)
         self.assertIn("manager_reports", prompt)
         self.assertIn("internal_budget_ledger", prompt)
         self.assertIn("campaign_decision", prompt)

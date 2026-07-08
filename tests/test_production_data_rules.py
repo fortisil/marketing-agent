@@ -236,6 +236,11 @@ class ProductionDataRulesTests(unittest.TestCase):
         self.assertIn("acceptance_criteria", prompt)
         self.assertIn("final_definition_of_done", prompt)
         self.assertIn("workforce", prompt)
+        self.assertIn("revenue_cmo", prompt)
+        self.assertIn("Revenue CMO", prompt)
+        self.assertIn("The active role is Revenue CMO, not social media manager.", prompt)
+        self.assertIn("Do not optimize vanity metrics.", prompt)
+        self.assertIn("qualified law firm demos", prompt)
         self.assertIn("Include budget status only as operating proof", prompt)
         self.assertIn("Include learning only from `growth_intelligence`, `content_intelligence`, `hypothesis_register`, `decision_ledger`, and `business_memory`", prompt)
         self.assertIn("Include promotion only from `promotion_brain` and `budget_guard`", prompt)
@@ -385,6 +390,18 @@ Yesterday no measurable customer-acquisition result was proven; today I will rem
 
 ## EXECUTIVE SCOREBOARD
 Business Health ............. 64 / 100, requires attention
+
+## Revenue CMO
+Primary KPI: Generate qualified law firm demos that convert into paying customers.
+Marketing Score: 4/10. Attribution is missing.
+Website Score: 5/10. CTA needs attention.
+Instagram Score: 3/10. No verified revenue signal yet.
+Meta Ads Score: 3/10. Meta execution is not verified.
+Sales Funnel Score: 2/10. WhatsApp-to-demo attribution is missing.
+Highest-impact recommendation: Connect WhatsApp attribution.
+Top 3 priorities: connect attribution, improve Hebrew product-led creative, run guarded exploration only after quality review.
+Risks: optimizing activity instead of qualified demos.
+Recommended next action: connect WhatsApp attribution.
 
 ## Manager Performance
 Social Manager: monitoring Instagram and Facebook; KPI Business Value Score 62; next review 16:00.
