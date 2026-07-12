@@ -687,13 +687,16 @@ python -m src.main --execute-marketing --require-business-artifact
 
 These commands do not send the CEO brief. The preflight command prints clean readiness JSON for tomorrow's production run. The connector check prints clean connector JSON and exits non-zero if Buffer auth/channel/draft validation fails. The campaign proof command prints clean JSON with `campaign_autonomy_status`, the deterministic budget guard, Meta connector status, next automatic action, CEO-action flag, and decision evidence. The execution command runs the persistent workforce, writes `memory/actions/YYYY-MM-DD.json` and `memory/executions/YYYY-MM-DD.json`, prints clean execution JSON, and exits non-zero unless at least one verified business artifact was created.
 
-The GitHub Actions acceptance workflow is:
+The production acceptance run now belongs on the dedicated VM, not GitHub Actions. Run it from the VM shell or the VM scheduler:
 
-```text
-.github/workflows/autonomous-marketing.yml
+```bash
+python -m src.main --preflight
+python -m src.main --check-connectors
+python -m src.main --prove-campaign-autonomy
+python -m src.main --execute-marketing --require-business-artifact
 ```
 
-Configure the CMO environment before using it as a real publishing run:
+Configure the VM environment before using it as a real publishing run:
 
 - Secrets: `OPENAI_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO`, `BUFFER_ACCESS_TOKEN`, `BUFFER_PROFILE_ID`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - Variables: `APP_ENV=production`, `SOCIAL_PUBLISHING_ENABLED=true`, `EXECUTION_DRY_RUN=false`, `IMAGE_GENERATION_ENABLED=true`, `ASSET_UPLOAD_PROVIDER=cloudinary`, `OPENAI_IMAGE_MODEL=gpt-image-1`
@@ -734,7 +737,7 @@ Current model:
 - `--generate-brief` creates delivery-ready artifacts under `memory/`.
 - `--send-now` generates the brief, saves Markdown/JSON, and sends via Resend when `RESEND_API_KEY` and `EMAIL_FROM` are configured.
 - If Resend is not configured, `--send-now` saves the brief, marks delivery as `skipped` in the report, and prints setup instructions.
-- Production daily delivery should run outside Codex, using the GitHub Actions workflow in `.github/workflows/daily-brief.yml`.
+- Production daily delivery runs from the dedicated VM. GitHub is only used for source control: commit and push changes, then pull/deploy them on the VM.
 - The ChatGPT/Gmail connector is only a manual fallback. Codex is for development, not production daily delivery.
 
 Resend settings:
@@ -855,16 +858,18 @@ See `.env.example` for all supported variables.
 
 ## Production Daily Delivery
 
-The production path is GitHub Actions plus Resend. The scheduled workflow runs:
+The production path is the dedicated VM plus Resend. GitHub Actions production workflows are intentionally removed; GitHub must not run the AI CMO.
+
+The VM scheduled job should run:
 
 ```bash
 python -m src.main --preflight
 python -m src.main --send-now
 ```
 
-The workflow runs daily at `05:00 UTC`, which is `08:00` in Israel during UTC+3 daylight time, and also supports manual runs through `workflow_dispatch`. `--send-now` executes the Marketing Workforce before generating the email, so the CEO brief reports Completed, Blocked, or Failed execution from that run.
+Schedule it on the VM for `08:00 Asia/Jerusalem`. `--send-now` executes the Marketing Workforce before generating the email, so the CEO brief reports Completed, Blocked, or Failed execution from that run.
 
-Configure these GitHub CMO environment secrets before enabling the scheduled run:
+Configure these VM environment secrets before enabling the scheduled run:
 
 ```text
 OPENAI_API_KEY
@@ -880,7 +885,7 @@ CLOUDINARY_API_SECRET
 
 `EMAIL_TO` should normally be `rami@gateco.ai`. If it is not configured, the workflow falls back to `rami@gateco.ai`.
 
-Required GitHub CMO environment variables:
+Required VM environment variables:
 
 ```text
 APP_ENV=production
@@ -899,16 +904,16 @@ ASSET_PUBLIC_BASE_URL
 META_API_VERSION
 ```
 
-If `OPENAI_MODEL` is not set, the workflow uses `gpt-4o-mini`. `ASSET_PUBLIC_BASE_URL` is not required when Cloudinary upload is configured.
+If `OPENAI_MODEL` is not set, the app uses the configured default model. `ASSET_PUBLIC_BASE_URL` is not required when Cloudinary upload is configured.
 
 To send a brief manually:
 
-1. Open the repository in GitHub.
-2. Go to Actions.
-3. Select `ChatBot2U Daily Brief`.
-4. Choose `Run workflow`.
+1. SSH into the dedicated VM.
+2. Pull the latest committed code.
+3. Activate the configured environment.
+4. Run `python -m src.main --send-now`.
 
-Do not rely on Codex scheduled threads for production daily delivery. Codex sessions can be sandboxed and may block the network calls required for OpenAI and Resend.
+Do not rely on Codex scheduled threads or GitHub Actions for production daily delivery. Codex is for development, and GitHub is for source control only.
 
 ## ChatGPT Delivery Instructions
 
